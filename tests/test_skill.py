@@ -107,7 +107,26 @@ def main():
     x = load_jsonl("xingce.jsonl")
     check(all(r.get("sub") for r in x), "每题都有 sub 字段")
 
-    print("[12] SKILL.md frontmatter")
+    print("[12] 难度 / 主题 / 分片 / 发行包")
+    check(all(isinstance(r.get("diff"), int) and 1 <= r["diff"] <= 5 for r in x), "每题都有 1–5 难度")
+    shen = load_jsonl("shenlun.jsonl")
+    check(all(r.get("theme") for r in shen), "申论每题都有主题标签")
+    split_dir = os.path.join(BASE, "references", "kaodian", "split")
+    n_split = len(os.listdir(split_dir)) if os.path.isdir(split_dir) else 0
+    check(n_split > 50, f"考点文件已分片（{n_split} 片）")
+    big = max(os.path.getsize(os.path.join(BASE, "references", "kaodian", f))
+              for f in os.listdir(os.path.join(BASE, "references", "kaodian"))
+              if f.endswith(".md"))
+    check(big < 40000, f"考点主文件均 < 40KB（最大 {big // 1024}KB）")
+    out = run("--module", "资料分析", "--diff", "5", "--limit", "1").stdout
+    check("难度" in out, "--diff 难度过滤可用")
+    out = run("--theme", "基层治理", "--limit", "1").stdout
+    check("主题" in out, "--theme 主题过滤可用")
+    dist = os.path.join(BASE, "dist")
+    zips = [f for f in os.listdir(dist)] if os.path.isdir(dist) else []
+    check(any(f.endswith(".zip") for f in zips), f"发行包已生成（{len(zips)} 个文件）")
+
+    print("[13] SKILL.md frontmatter")
     with open(os.path.join(BASE, "SKILL.md"), encoding="utf-8") as f:
         head = f.read(2000)
     check(head.startswith("---") and "name: gongkao-zhenti-knowledge" in head, "frontmatter 含 name")

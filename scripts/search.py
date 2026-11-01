@@ -193,6 +193,7 @@ def match_keywords(rec, kws):
         rec.get("expl", ""), rec.get("ans", "") or "",
         " ".join(rec.get("kw") or []),
         rec.get("type", ""), rec.get("module", ""), rec.get("code", ""), rec.get("sub", ""),
+        " ".join(rec.get("theme") or []),
     ])
     hay_ns = _nospace(hay)
     return all(k.lower() in hay or _nospace(k).lower() in hay_ns for k in kws)
@@ -223,6 +224,10 @@ def fmt(rec, full=False, show_expl=True):
     head += f" 第 {num} 题　| {rec['module']}·{rec['type']}（{rec['code']}）"
     if rec.get("sub"):
         head += f"　子考点：{rec['sub']}"
+    if rec.get("diff"):
+        head += f"　难度：{'★' * rec['diff']}{'☆' * (5 - rec['diff'])}"
+    if rec.get("theme"):
+        head += f"　主题：{'/'.join(rec['theme'])}"
     out = [head]
     if rec.get("ctx"):
         ctx = rec["ctx"] if full else rec["ctx"][:160] + ("…" if len(rec["ctx"]) > 160 else "")
@@ -256,6 +261,8 @@ def main(argv=None):
     ap.add_argument("--module", help="模块：资料分析/数量关系/言语理解/判断推理/常识判断/申论")
     ap.add_argument("--type", dest="type_", help="题型名，如 图形推理")
     ap.add_argument("--sub", help="子考点名（三级），如 两期比重差 / 翻译推理 / 最不利构造")
+    ap.add_argument("--diff", dest="diff", help="难度：4 或 4-5 或 1,2（1 易 – 5 难）")
+    ap.add_argument("--theme", help="申论主题，如 基层治理 / 乡村振兴 / 科技创新")
     ap.add_argument("--year", type=int, action="append", default=[], help="年份，可多次（OR）")
     ap.add_argument("--from-year", type=int, help="起始年份")
     ap.add_argument("--to-year", type=int, help="结束年份")
@@ -302,6 +309,18 @@ def main(argv=None):
         sel = [r for r in sel if args.type_ in r["type"]]
     if args.sub:
         sel = [r for r in sel if args.sub in (r.get("sub") or "")]
+    if args.diff:
+        want = set()
+        for part in str(args.diff).split(","):
+            part = part.strip()
+            if "-" in part:
+                a, b = part.split("-", 1)
+                want.update(range(int(a), int(b) + 1))
+            elif part:
+                want.add(int(part))
+        sel = [r for r in sel if r.get("diff") in want]
+    if args.theme:
+        sel = [r for r in sel if any(args.theme in t for t in (r.get("theme") or []))]
     if args.kaodian:
         want = set()
         for k in args.kaodian:

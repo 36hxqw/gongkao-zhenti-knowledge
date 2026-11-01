@@ -39,6 +39,7 @@
 | 申论小题 | 419 题（含参考答案） |
 | 考点 | 48 个有题考点，覆盖 6 大模块、49 个编码；三级子考点 193 个标签 |
 | 原题配图 | 2 336 张（图形推理的图形、图表型资料分析材料） |
+| 难度 / 主题 | 11 393 + 419 题全部 1–5 难度分档；申论 419 题带主题标签（15 类） |
 | 年份跨度 | 2000–2026（含 2026 国考、广东、湖北最新卷） |
 
 模块分布：判断推理 29.2%、言语理解 24.2%、常识判断 19.5%、资料分析 14.9%、数量关系 12.2%。
@@ -65,7 +66,8 @@ gongkao-zhenti-knowledge/
 ├── references/
 │   ├── 00-index.md               # 总索引（考点→文件、试卷→文件）
 │   ├── 01-命题规律总览.md         # 分省分年模块矩阵、高频考点 TOP20、题型变迁
-│   ├── kaodian/                  # 48 个考点文件：规律 + 原题 + 答案 + 解析
+│   ├── kaodian/                  # 48 个考点文件：规律 + 近年 12 题 + 分片索引
+│   │   └── split/                # 127 个年代分片（控制单次读取体积）
 │   ├── juan/                     # 98 套行测原卷（题目 + 答案 + 考点）
 │   ├── shenlun/                  # 106 套申论原卷（材料 + 题目 + 参考答案）
 │   └── images/                   # 2 336 张原题配图（自动裁切）
@@ -78,6 +80,7 @@ gongkao-zhenti-knowledge/
 │   ├── search.py                 # 检索 CLI（考点/子考点/多关键词/模糊，零依赖）
 │   ├── paper.py                  # 组卷：按考点轮转抽样，输出试卷 + 答案页
 │   ├── wrongbook.py              # 错题本：记录 / 归因 / 复盘报告
+│   ├── make_release.py           # 打包 lite / full 发行版
 │   └── selfcheck.py              # 数据自检
 ├── tests/
 │   ├── test_skill.py             # 检索与数据一致性冒烟测试
@@ -128,6 +131,13 @@ python scripts/paper.py --module 资料分析 --count 20 --prov 国考 --years 2
 python scripts/wrongbook.py add --id GK-2024-fs-X112 --reason 技巧不熟 --note "两期比重差算成增长率"
 python scripts/wrongbook.py stats
 python scripts/wrongbook.py report --out out/wrongbook.md
+
+# 难度 / 主题过滤
+python scripts/search.py --diff 4-5 --module 资料分析
+python scripts/search.py --theme 基层治理 --limit 5
+
+# 打包发行版（lite 6.6MB / full 41MB）
+python scripts/make_release.py --version 1.3.0
 
 # 列出全部考点与题量
 python scripts/search.py --list-kaodian

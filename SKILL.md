@@ -2,7 +2,7 @@
 name: gongkao-zhenti-knowledge
 description: 公考真题知识库（国考 2000–2026、广东省考 2003–2026、湖北省考 2008–2026，行测 11393 题 + 申论 414 题，含答案与解析）。当用户需要「历年真题原题」「这道题哪年考过」「某考点出过哪些题」「真题+答案」「命题规律/高频考点/考情分析」「按年份/省份/题型检索真题」「多关键词模糊找题」时使用。考点体系完全对齐 gongkao-huasheng13（花生十三公考技巧）：资料分析 ABRX 九大题型、数量关系十二题型、言语理解、判断推理、常识判断、申论五大题型。检索到真题后自动联动 gongkao-huasheng13 输出对应解题技巧与速算方法。触发词：真题、原题、历年真题、题干、选项、答案、解析、命题规律、高频考点、考情、国考真题、广东省考真题、湖北省考真题、行测真题、申论真题、考点分布、哪年考过、还考过什么。
 license: MIT
-version: 1.2.0
+version: 1.3.0
 ---
 
 # 公考真题知识库
@@ -37,30 +37,39 @@ version: 1.2.0
 
 ```
 data/
-  xingce.jsonl        行测全量题库，1 行 1 题，11 393 题（含答案/解析/考点/关键词/同题折叠标记）
-  shenlun.jsonl      申论题库，1 行 1 小题，419 题（含材料/答案）
+  xingce.jsonl        行测全量题库，1 行 1 题，11 393 题（含答案/解析/考点/子考点/难度/关键词/同题折叠标记）
+  shenlun.jsonl      申论题库，1 行 1 小题，419 题（含材料/答案/主题标签/难度）
   search-index.tsv    检索索引，1 行 1 题：id 年份 省份 卷别 模块 题型 关键词 题干摘要
   stats.json          全库统计（题量、年份、模块分布、考点分布）
 references/
   00-index.md         总索引：考点 → 文件、试卷 → 文件（先读这个）
   01-命题规律总览.md   分省分年模块题量矩阵、高频考点 TOP20、题型变迁
-  kaodian/<编码>-<名称>.md   48 个考点文件：命题规律 + 原题 + 答案 + 解析
-  juan/<省>-<年>-<卷别>.md   98 套行测原卷：题目 + 答案 + 考点标注
-  shenlun/<省>-<年>-<卷别>.md 106 套申论原卷：材料 + 题目 + 参考答案
-  images/<题目ID>.jpg        2 300+ 张原题配图（图形推理的图形、资料分析的图表材料）
+  kaodian/<编码>-<名称>.md   48 个考点文件：命题规律 + 近年 12 题 + 分片索引
+  kaodian/split/*.md        127 个年代分片（其余真题按 2000s/2010s/2020s 拆开，控制单次读取体积）
+  juan/<省>-<年>-<卷别>.md   98 套行测原卷：题目 + 答案 + 考点 + 难度
+  shenlun/<省>-<年>-<卷别>.md 106 套申论原卷：材料 + 题目 + 参考答案 + 主题标签
+  images/<题目ID>.jpg        2 336 张原题配图（图形推理的图形、资料分析的图表材料）
 docs/
-  kaodian-taxonomy.md 考点体系全表（对齐花生十三的映射依据）
+  kaodian-taxonomy.md 考点体系全表（三级）+ 对齐花生十三的映射依据
   data-spec.md        字段说明与数据口径
   coverage.md         覆盖范围与已知缺口（扫描件缺答案等）
+  eval.md             评测集与指标口径
+  distribution.md     lite / full 发行包与 GitHub Release
 scripts/
-  search.py           检索 CLI（考点/子考点/年份/省份/多关键词/模糊）
+  search.py           检索 CLI（考点/子考点/年份/省份/多关键词/模糊/难度/主题）
   paper.py            组卷：按考点配比生成试卷 + 答案页
   wrongbook.py        错题本：记录、归因、复习报告
+  make_release.py     打包 lite / full 发行版
   selfcheck.py        数据自检
 tests/
   test_skill.py       检索与数据一致性冒烟测试
-  eval.py             分类准确率评测（结构化弱标注 gold 集）
+  test_tools.py       组卷 / 错题本测试
+  eval.py             分类准确率评测（强标注/弱标注两档 gold）
 ```
+
+**命题规律字段**：每题带 `sub`（三级子考点）、`diff`（1–5 难度，模块内等频）、申论另有 `theme`（1–3 个主题标签）。检索可用 `--sub` / `--diff 4-5` / `--theme 基层治理` 组合过滤；组卷可按考点轮转自动配难度分布。
+
+**分片读取**：考点主文件现在只放「规律 + 近年 12 题」，其余题目在 `kaodian/split/<编码>-<年代>s.md`。**不要一次读完整个考点目录**：先读主文件判断趋势，需要更多例题再按年代读分片。
 
 **同题折叠**：同一道题常在国考副省/地市/执法三卷、不同年份、联考各省重复出现。数据里 `canonical` 指向同题主记录、`dup_n` 是变体数；检索默认只出主记录（并提示"同题另有 N 个变体"），要看该题所有年份出处时加 `--all-variants`。回答"还考过什么"时，用变体年份作为佐证（例如"这题 2021 地市、2023 副省、2024 执法都出现过"）。
 
@@ -102,7 +111,9 @@ python scripts/search.py --kw 占比 --kw 提高 --fuzzy          # 模糊：同
 python scripts/search.py --any 新质生产力 未来产业 低空经济    # 任一词命中
 python scripts/search.py --id GK-2025-fs-X010 --full          # 取完整题目
 python scripts/paper.py --module 资料分析 --count 20 --prov 国考 --out out/套卷.md     # 组卷
+python scripts/search.py --theme 基层治理 --diff 4-5          # 主题 + 难度
 python scripts/wrongbook.py add --id GK-2024-fs-X112 --reason 技巧不熟                # 错题本
+python scripts/make_release.py --version 1.3.0                # 打包 lite / full
 ```
 
 **检索策略优先级**：`--sub`（子考点）> `--kaodian`（考点）> `--kw`（关键词 AND）> `--fuzzy`（模糊）> `--any`（OR）。先用最具体的；没结果就降一级，不要一上来就用 `--any`（噪声大）。

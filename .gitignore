@@ -24,3 +24,5 @@ tools/pipeline/out/
 # 用户数据与临时产出
 user/
 out/
+
+dist/

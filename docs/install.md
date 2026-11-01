@@ -4,6 +4,15 @@
 
 ---
 
+## 零、先选发行版
+
+| 版本 | 体积 | 内容 | 用途 |
+|---|---|---|---|
+| **lite** | 6.6 MB | 全部 Markdown 题库 + 检索索引 | 豆包上传、只要查真题 |
+| **full** | 41 MB | lite + JSONL 题库 + 2336 张配图 + 工具链 | 本地刷题、组卷、错题本 |
+
+打包命令与 GitHub Release 流程见 [distribution.md](distribution.md)。
+
 ## 一、安装到豆包工作模式
 
 豆包（Doubao）的「技能 / 工作模式」按 Agent Skills 规范加载：一个目录 + `SKILL.md`（含 YAML frontmatter 的 `name` 与 `description`），其余文件作为按需读取的资源。

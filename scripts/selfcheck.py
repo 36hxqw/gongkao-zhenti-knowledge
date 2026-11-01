@@ -53,6 +53,10 @@ def main():
             problems.append(f"题干为空: {r['id']}")
         if r["year"] and not (2000 <= r["year"] <= 2026):
             problems.append(f"年份异常 {r['year']}: {r['id']}")
+        if not isinstance(r.get("diff"), int) or not (1 <= r["diff"] <= 5):
+            problems.append(f"难度缺失或越界 {r.get('diff')}: {r['id']}")
+        if not r.get("sub"):
+            problems.append(f"子考点为空: {r['id']}")
 
     for r in s:
         for k in REQUIRED_S:
@@ -63,6 +67,8 @@ def main():
         ids.add(r["id"])
         if r["code"] not in VALID_CODES:
             problems.append(f"非法考点编码 {r['code']}: {r['id']}")
+        if not r.get("theme"):
+            problems.append(f"申论主题为空: {r['id']}")
 
     # 索引一致性
     idx_ids = set()

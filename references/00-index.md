@@ -20,31 +20,31 @@
 
 | 考点 | 编码 | 题量 | 年份跨度 | 文件 |
 |---|---|---:|---|---|
-| 工程问题 | `SL-GC` | 55 | 2002–2026 | [SL-GC-工程问题.md](kaodian/SL-GC-工程问题.md) |
+| 工程问题 | `SL-GC` | 52 | 2002–2026 | [SL-GC-工程问题.md](kaodian/SL-GC-工程问题.md) |
 | 行程问题 | `SL-XC` | 90 | 2000–2026 | [SL-XC-行程问题.md](kaodian/SL-XC-行程问题.md) |
-| 利润问题 | `SL-LR` | 48 | 2000–2026 | [SL-LR-利润问题.md](kaodian/SL-LR-利润问题.md) |
-| 排列组合 | `SL-PL` | 53 | 2004–2026 | [SL-PL-排列组合.md](kaodian/SL-PL-排列组合.md) |
+| 利润问题 | `SL-LR` | 47 | 2000–2026 | [SL-LR-利润问题.md](kaodian/SL-LR-利润问题.md) |
+| 排列组合 | `SL-PL` | 52 | 2004–2026 | [SL-PL-排列组合.md](kaodian/SL-PL-排列组合.md) |
 | 概率问题 | `SL-GL` | 50 | 2009–2026 | [SL-GL-概率问题.md](kaodian/SL-GL-概率问题.md) |
 | 容斥问题 | `SL-RC` | 28 | 2005–2025 | [SL-RC-容斥问题.md](kaodian/SL-RC-容斥问题.md) |
-| 最值问题 | `SL-ZZ` | 102 | 2000–2026 | [SL-ZZ-最值问题.md](kaodian/SL-ZZ-最值问题.md) |
-| 年龄问题 | `SL-NL` | 30 | 2000–2026 | [SL-NL-年龄问题.md](kaodian/SL-NL-年龄问题.md) |
-| 几何问题 | `SL-JH` | 94 | 2002–2026 | [SL-JH-几何问题.md](kaodian/SL-JH-几何问题.md) |
+| 最值问题 | `SL-ZZ` | 99 | 2000–2026 | [SL-ZZ-最值问题.md](kaodian/SL-ZZ-最值问题.md) |
+| 年龄问题 | `SL-NL` | 29 | 2000–2026 | [SL-NL-年龄问题.md](kaodian/SL-NL-年龄问题.md) |
+| 几何问题 | `SL-JH` | 93 | 2002–2026 | [SL-JH-几何问题.md](kaodian/SL-JH-几何问题.md) |
 | 溶液问题 | `SL-RY` | 10 | 2005–2024 | [SL-RY-溶液问题.md](kaodian/SL-RY-溶液问题.md) |
 | 牛吃草问题 | `SL-NCC` | 2 | 2006–2009 | [SL-NCC-牛吃草问题.md](kaodian/SL-NCC-牛吃草问题.md) |
-| 鸡兔同笼 | `SL-JT` | 4 | 2005–2019 | [SL-JT-鸡兔同笼.md](kaodian/SL-JT-鸡兔同笼.md) |
+| 鸡兔同笼 | `SL-JT` | 3 | 2005–2019 | [SL-JT-鸡兔同笼.md](kaodian/SL-JT-鸡兔同笼.md) |
 | 数字推理 | `SL-SZ` | 280 | 2000–2026 | [SL-SZ-数字推理.md](kaodian/SL-SZ-数字推理.md) |
-| 其他数量关系 | `SL-OT` | 426 | 2000–2026 | [SL-OT-其他数量关系.md](kaodian/SL-OT-其他数量关系.md) |
+| 其他数量关系 | `SL-OT` | 390 | 2000–2026 | [SL-OT-其他数量关系.md](kaodian/SL-OT-其他数量关系.md) |
 
 ### 言语理解
 
 | 考点 | 编码 | 题量 | 年份跨度 | 文件 |
 |---|---|---:|---|---|
-| 逻辑填空 | `YY-LJTK` | 1258 | 2001–2026 | [YY-LJTK-逻辑填空.md](kaodian/YY-LJTK-逻辑填空.md) |
-| 中心理解 | `YY-ZXJL` | 890 | 2000–2026 | [YY-ZXJL-中心理解.md](kaodian/YY-ZXJL-中心理解.md) |
+| 逻辑填空 | `YY-LJTK` | 1266 | 2001–2026 | [YY-LJTK-逻辑填空.md](kaodian/YY-LJTK-逻辑填空.md) |
+| 中心理解 | `YY-ZXJL` | 928 | 2000–2026 | [YY-ZXJL-中心理解.md](kaodian/YY-ZXJL-中心理解.md) |
 | 细节判断 | `YY-XJPD` | 63 | 2000–2026 | [YY-XJPD-细节判断.md](kaodian/YY-XJPD-细节判断.md) |
 | 标题填入 | `YY-BTTR` | 61 | 2003–2026 | [YY-BTTR-标题填入.md](kaodian/YY-BTTR-标题填入.md) |
 | 语句填入 | `YY-YJTR` | 14 | 2003–2026 | [YY-YJTR-语句填入.md](kaodian/YY-YJTR-语句填入.md) |
-| 下文推断 | `YY-XWTD` | 50 | 2007–2026 | [YY-XWTD-下文推断.md](kaodian/YY-XWTD-下文推断.md) |
+| 下文推断 | `YY-XWTD` | 51 | 2007–2026 | [YY-XWTD-下文推断.md](kaodian/YY-XWTD-下文推断.md) |
 | 语句排序 | `YY-YJPX` | 91 | 2002–2026 | [YY-YJPX-语句排序.md](kaodian/YY-YJPX-语句排序.md) |
 
 ### 判断推理

@@ -158,14 +158,16 @@ def _bigrams(s):
 
 
 def fuzzy_hit(kw, hay):
-    """同义词任一命中，或 2-gram 覆盖率 >= 0.6（容忍语序/个别字差异）。"""
+    """同义词任一命中，或 2-gram 覆盖率 >= 0.6（容忍语序/个别字差异/空格）。"""
+    hay_ns = _nospace(hay)
     for v in _EXPAND.get(kw, {kw}):
-        if v in hay:
+        if v in hay or _nospace(v) in hay_ns:
             return True
-    a, b = _bigrams(kw), set(hay)
+    q = _nospace(kw)
+    a = _bigrams(q)
     if not a:
-        return kw in hay
-    hit = sum(1 for g in a if g in hay)
+        return q in hay_ns
+    hit = sum(1 for g in a if g in hay_ns)
     return hit / len(a) >= 0.6
 
 
@@ -178,6 +180,12 @@ def match_keywords_fuzzy(rec, kws):
     return all(fuzzy_hit(k, hay) for k in kws)
 
 
+RE_WS = re.compile(r"\s+")
+
+
+def _nospace(s):
+    return RE_WS.sub("", s or "")
+
 def match_keywords(rec, kws):
     hay = " ".join([
         rec.get("stem", ""), rec.get("ctx", ""), rec.get("material", ""),
@@ -186,7 +194,8 @@ def match_keywords(rec, kws):
         " ".join(rec.get("kw") or []),
         rec.get("type", ""), rec.get("module", ""), rec.get("code", ""), rec.get("sub", ""),
     ])
-    return all(k.lower() in hay for k in kws)
+    hay_ns = _nospace(hay)
+    return all(k.lower() in hay or _nospace(k).lower() in hay_ns for k in kws)
 
 
 def match_any(rec, kws):
@@ -195,7 +204,8 @@ def match_any(rec, kws):
         " ".join((rec.get("opts") or {}).values()),
         rec.get("expl", ""), " ".join(rec.get("kw") or []),
     ])
-    return any(k.lower() in hay for k in kws)
+    hay_ns = _nospace(hay)
+    return any(k.lower() in hay or _nospace(k).lower() in hay_ns for k in kws)
 
 
 def expand_codes(words):

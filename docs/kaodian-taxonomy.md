@@ -48,20 +48,20 @@
 
 | 编码 | 题型 | 题量 | 出现年份 | 花生十三对齐位置 |
 |---|---|---:|---|---|
-| `SL-GC` | 工程问题 | 61 | 2002–2026 | shuliang-guanxi.md#题型1 |
+| `SL-GC` | 工程问题 | 58 | 2002–2026 | shuliang-guanxi.md#题型1 |
 | `SL-XC` | 行程问题 | 100 | 2000–2026 | shuliang-guanxi.md#题型2 |
-| `SL-LR` | 利润问题 | 58 | 2000–2026 | shuliang-guanxi.md#题型3 |
-| `SL-PL` | 排列组合 | 65 | 2004–2026 | shuliang-guanxi.md#题型4 |
+| `SL-LR` | 利润问题 | 57 | 2000–2026 | shuliang-guanxi.md#题型3 |
+| `SL-PL` | 排列组合 | 64 | 2004–2026 | shuliang-guanxi.md#题型4 |
 | `SL-GL` | 概率问题 | 59 | 2009–2026 | shuliang-guanxi.md#题型5 |
 | `SL-RC` | 容斥问题 | 31 | 2005–2025 | shuliang-guanxi.md#题型6 |
-| `SL-ZZ` | 最值问题 | 119 | 2000–2026 | shuliang-guanxi.md#题型7 |
-| `SL-NL` | 年龄问题 | 37 | 2000–2026 | shuliang-guanxi.md#题型8 |
-| `SL-JH` | 几何问题 | 107 | 2002–2026 | shuliang-guanxi.md#题型9 |
+| `SL-ZZ` | 最值问题 | 116 | 2000–2026 | shuliang-guanxi.md#题型7 |
+| `SL-NL` | 年龄问题 | 36 | 2000–2026 | shuliang-guanxi.md#题型8 |
+| `SL-JH` | 几何问题 | 106 | 2002–2026 | shuliang-guanxi.md#题型9 |
 | `SL-RY` | 溶液问题 | 10 | 2005–2024 | shuliang-guanxi.md#题型10 |
 | `SL-NCC` | 牛吃草问题 | 2 | 2006–2009 | shuliang-guanxi.md#题型11 |
-| `SL-JT` | 鸡兔同笼 | 4 | 2005–2019 | shuliang-guanxi.md#题型12 |
+| `SL-JT` | 鸡兔同笼 | 3 | 2005–2019 | shuliang-guanxi.md#题型12 |
 | `SL-SZ` | 数字推理 | 290 | 2000–2026 | 体系外补充（旧题型，归入数量关系） |
-| `SL-OT` | 其他数量关系 | 464 | 2000–2026 | 体系外补充（方程/和差倍比/基础计算，归入数量关系） |
+| `SL-OT` | 其他数量关系 | 424 | 2000–2026 | 体系外补充（方程/和差倍比/基础计算，归入数量关系） |
 
 #### 三级子考点
 )
@@ -81,12 +81,12 @@
 
 | 编码 | 题型 | 题量 | 出现年份 | 花生十三对齐位置 |
 |---|---|---:|---|---|
-| `YY-LJTK` | 逻辑填空 | 1460 | 2001–2026 | yanyu-lianjie.md#二 |
-| `YY-ZXJL` | 中心理解 | 997 | 2000–2026 | yanyu-lianjie.md#3.1 |
+| `YY-LJTK` | 逻辑填空 | 1468 | 2001–2026 | yanyu-lianjie.md#二 |
+| `YY-ZXJL` | 中心理解 | 1039 | 2000–2026 | yanyu-lianjie.md#3.1 |
 | `YY-XJPD` | 细节判断 | 69 | 2000–2026 | yanyu-lianjie.md#3.2 |
 | `YY-BTTR` | 标题填入 | 73 | 2003–2026 | yanyu-lianjie.md#3.3 |
 | `YY-YJTR` | 语句填入 | 18 | 2003–2026 | yanyu-lianjie.md#3.4 |
-| `YY-XWTD` | 下文推断 | 61 | 2007–2026 | yanyu-lianjie.md#3.5 |
+| `YY-XWTD` | 下文推断 | 62 | 2007–2026 | yanyu-lianjie.md#3.5 |
 | `YY-YJXH` | 语句衔接 | 0 | — | yanyu-lianjie.md#4.2 |
 | `YY-YJPX` | 语句排序 | 108 | 2002–2026 | yanyu-lianjie.md#4.1 |
 | `YY-PZYD` | 篇章阅读 | 0 | — | yanyu-lianjie.md#五 |

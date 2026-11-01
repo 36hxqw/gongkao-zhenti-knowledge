@@ -1,0 +1,15 @@
+ZL guokao 2019-2026: raw=380 canon=295 canon+ans=283
+ZL-BILI all: raw=269 canon=233 canon+ans=176
+PD-TX all: raw=833 canon=801 canon+ans=547
+PD guokao 2019-2026: raw=726 canon=622 canon+ans=596
+YY all: raw=2787 canon=2428 canon+ans=1961
+CS all: raw=2197 canon=1979 canon+ans=1665
+SL all: raw=1391 canon=1256 canon+ans=783
+ZL all: raw=1694 canon=1556 canon+ans=1081
+ZL guokao 2019-2026 code ZL-COMP: raw=55 canon=46 canon+ans=43
+ZL GK 19-26 by code: Counter({'ZL-BASE': 86, 'ZL-BILI': 81, 'ZL-COMP': 55, 'ZL-AVG': 53, 'ZL-RATE': 37, 'ZL-GROW': 36, 'ZL-BEI': 25, 'ZL-YEAR': 7})
+ZL GK 19-26 opts empty: 10
+ZL GK 19-26 with img: 346
+num types: Counter({'int': 11393})
+vols: Counter({'统一卷': 4982, '地市级': 1412, '副省级': 1213, '乡镇': 800, '县级': 693, '行政执法': 650, 'A卷': 354, 'B卷': 336, '省级': 269, '选调': 205, '思维能力测验': 179, '一卷': 100, '三卷': 100, '综合行政能力测验': 100})
+shenlun n=419 keys=['ans', 'code', 'id', 'kw', 'material', 'module', 'no', 'paper', 'paper_answer', 'prov', 'src', 'stem', 'type', 'vol', 'year']

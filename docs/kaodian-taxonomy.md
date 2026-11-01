@@ -10,7 +10,7 @@
 
 **编码规则**：`模块前缀-题型缩写`。ZL=资料分析，SL=数量关系，YY=言语理解，PD=判断推理，CS=常识判断，SN=申论。
 
-**总题量**：11812 题（行测 11393 + 申论 419）
+**总题量**：11812 题（行测 11393 + 申论 419）；**三级子考点**：185 个标签（其中 46 个是题型兜底项，其余为可精确检索的细粒度子考点）
 
 ## 资料分析
 
@@ -28,6 +28,18 @@
 | `ZL-PULL` | 拉动增长率与贡献率 | 0 | — | ziliao-fenxi.md#题型8 |
 | `ZL-COMP` | 综合分析 | 321 | 2003–2026 | ziliao-fenxi.md#题型9 |
 
+#### 三级子考点
+)
+            lines.append("| 题型 | 子考点 | 题量 |")
+            lines.append("|---|---|---:|")
+            for c in codes:
+                subs = SUB_TAXONOMY.get(c, [])
+                if len(subs) <= 1:
+                    continue
+                for name, _pat in subs:
+                    n = subcnt.get((c, name), 0)
+                    lines.append(f"| {TAXONOMY[c][1]} | {name} | {n} |")
+            lines.append(
 > 本库未命中的题型（存量真题中未出现或抽取失败）：`ZL-PULL`
 
 ## 数量关系
@@ -50,6 +62,18 @@
 | `SL-JT` | 鸡兔同笼 | 4 | 2005–2019 | shuliang-guanxi.md#题型12 |
 | `SL-SZ` | 数字推理 | 275 | 2000–2026 | 体系外补充（旧题型，归入数量关系） |
 
+#### 三级子考点
+)
+            lines.append("| 题型 | 子考点 | 题量 |")
+            lines.append("|---|---|---:|")
+            for c in codes:
+                subs = SUB_TAXONOMY.get(c, [])
+                if len(subs) <= 1:
+                    continue
+                for name, _pat in subs:
+                    n = subcnt.get((c, name), 0)
+                    lines.append(f"| {TAXONOMY[c][1]} | {name} | {n} |")
+            lines.append(
 ## 言语理解
 
 花生十三对应文件：`references/yanyu-lianjie.md`、`yanyu-ciyu.md`、`yanyu-zhuanxiang.md`
@@ -66,6 +90,18 @@
 | `YY-YJPX` | 语句排序 | 108 | 2002–2026 | yanyu-lianjie.md#4.1 |
 | `YY-PZYD` | 篇章阅读 | 0 | — | yanyu-lianjie.md#五 |
 
+#### 三级子考点
+)
+            lines.append("| 题型 | 子考点 | 题量 |")
+            lines.append("|---|---|---:|")
+            for c in codes:
+                subs = SUB_TAXONOMY.get(c, [])
+                if len(subs) <= 1:
+                    continue
+                for name, _pat in subs:
+                    n = subcnt.get((c, name), 0)
+                    lines.append(f"| {TAXONOMY[c][1]} | {name} | {n} |")
+            lines.append(
 > 本库未命中的题型（存量真题中未出现或抽取失败）：`YY-YJXH`、`YY-PZYD`
 
 ## 判断推理
@@ -80,6 +116,18 @@
 | `PD-LJ` | 逻辑判断 | 1282 | 2000–2026 | panduan-tuili.md#四 |
 | `PD-KX` | 科学推理 | 33 | 2000–2025 | 体系外补充（广东特色，归入判断推理） |
 
+#### 三级子考点
+)
+            lines.append("| 题型 | 子考点 | 题量 |")
+            lines.append("|---|---|---:|")
+            for c in codes:
+                subs = SUB_TAXONOMY.get(c, [])
+                if len(subs) <= 1:
+                    continue
+                for name, _pat in subs:
+                    n = subcnt.get((c, name), 0)
+                    lines.append(f"| {TAXONOMY[c][1]} | {name} | {n} |")
+            lines.append(
 ## 常识判断
 
 花生十三对应文件：`references/changshi-panduan.md`、`shizheng-redian.md`
@@ -95,6 +143,18 @@
 | `CS-SZ` | 时事政治 | 66 | 2003–2026 | changshi-panduan.md#2.7 |
 | `CS-SH` | 生活常识 | 62 | 2006–2026 | changshi-panduan.md#2.8 |
 
+#### 三级子考点
+)
+            lines.append("| 题型 | 子考点 | 题量 |")
+            lines.append("|---|---|---:|")
+            for c in codes:
+                subs = SUB_TAXONOMY.get(c, [])
+                if len(subs) <= 1:
+                    continue
+                for name, _pat in subs:
+                    n = subcnt.get((c, name), 0)
+                    lines.append(f"| {TAXONOMY[c][1]} | {name} | {n} |")
+            lines.append(
 ## 申论
 
 花生十三对应文件：`references/shenlun.md`、`shenlun-biaoda.md`、`shenlun-sucai.md`
@@ -107,6 +167,18 @@
 | `SN-GW` | 公文写作题 | 64 | 2003–2026 | shenlun.md#五 |
 | `SN-DZW` | 大作文 | 74 | 2001–2026 | shenlun.md#六 |
 
+#### 三级子考点
+)
+            lines.append("| 题型 | 子考点 | 题量 |")
+            lines.append("|---|---|---:|")
+            for c in codes:
+                subs = SUB_TAXONOMY.get(c, [])
+                if len(subs) <= 1:
+                    continue
+                for name, _pat in subs:
+                    n = subcnt.get((c, name), 0)
+                    lines.append(f"| {TAXONOMY[c][1]} | {name} | {n} |")
+            lines.append(
 ## 体系外补充说明
 
 | 编码 | 题型 | 处理方式 |

@@ -62,8 +62,8 @@
 |---|---|---:|---|---|
 | 政治常识 | `CS-ZZ` | 1100 | 2000–2026 | [CS-ZZ-政治常识.md](kaodian/CS-ZZ-政治常识.md) |
 | 经济常识 | `CS-JJ` | 155 | 2000–2026 | [CS-JJ-经济常识.md](kaodian/CS-JJ-经济常识.md) |
-| 法律常识 | `CS-FL` | 224 | 2002–2026 | [CS-FL-法律常识.md](kaodian/CS-FL-法律常识.md) |
-| 历史人文 | `CS-LS` | 177 | 2000–2026 | [CS-LS-历史人文.md](kaodian/CS-LS-历史人文.md) |
+| 法律常识 | `CS-FL` | 223 | 2002–2026 | [CS-FL-法律常识.md](kaodian/CS-FL-法律常识.md) |
+| 历史人文 | `CS-LS` | 176 | 2000–2026 | [CS-LS-历史人文.md](kaodian/CS-LS-历史人文.md) |
 | 地理常识 | `CS-DL` | 95 | 2002–2026 | [CS-DL-地理常识.md](kaodian/CS-DL-地理常识.md) |
 | 科技常识 | `CS-KJ` | 112 | 2001–2026 | [CS-KJ-科技常识.md](kaodian/CS-KJ-科技常识.md) |
 | 时事政治 | `CS-SZ` | 56 | 2003–2026 | [CS-SZ-时事政治.md](kaodian/CS-SZ-时事政治.md) |

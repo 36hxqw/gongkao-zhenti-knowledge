@@ -53,8 +53,13 @@ docs/
   data-spec.md        字段说明与数据口径
   coverage.md         覆盖范围与已知缺口（扫描件缺答案等）
 scripts/
-  search.py           检索 CLI（考点/年份/省份/多关键词）
+  search.py           检索 CLI（考点/子考点/年份/省份/多关键词/模糊）
+  paper.py            组卷：按考点配比生成试卷 + 答案页
+  wrongbook.py        错题本：记录、归因、复习报告
   selfcheck.py        数据自检
+tests/
+  test_skill.py       检索与数据一致性冒烟测试
+  eval.py             分类准确率评测（结构化弱标注 gold 集）
 ```
 
 **同题折叠**：同一道题常在国考副省/地市/执法三卷、不同年份、联考各省重复出现。数据里 `canonical` 指向同题主记录、`dup_n` 是变体数；检索默认只出主记录（并提示"同题另有 N 个变体"），要看该题所有年份出处时加 `--all-variants`。回答"还考过什么"时，用变体年份作为佐证（例如"这题 2021 地市、2023 副省、2024 执法都出现过"）。
@@ -92,9 +97,15 @@ scripts/
 python scripts/search.py --kw 黑土地 --kw 保护 --prov 国考 --limit 5
 python scripts/search.py --kw 基期 --kw 比重 --year 2023      # 多关键词 AND
 python scripts/search.py --kaodian ZL-BILI --prov 广东        # 考点 + 省份
+python scripts/search.py --sub 两期比重差                     # 三级子考点（最精准）
+python scripts/search.py --kw 占比 --kw 提高 --fuzzy          # 模糊：同义词 + 2-gram（换说法/错字也能中）
 python scripts/search.py --any 新质生产力 未来产业 低空经济    # 任一词命中
 python scripts/search.py --id GK-2025-fs-X010 --full          # 取完整题目
+python scripts/paper.py --module 资料分析 --count 20 --prov 国考 --out out/套卷.md     # 组卷
+python scripts/wrongbook.py add --id GK-2024-fs-X112 --reason 技巧不熟                # 错题本
 ```
+
+**检索策略优先级**：`--sub`（子考点）> `--kaodian`（考点）> `--kw`（关键词 AND）> `--fuzzy`（模糊）> `--any`（OR）。先用最具体的；没结果就降一级，不要一上来就用 `--any`（噪声大）。
 
 **方法 2（无 Python：文本检索降级）**
 

@@ -119,13 +119,72 @@ def norm(s):
     return (s or "").strip().lower()
 
 
+
+# 同义词组：fuzzy 模式下任一说法命中即算命中（解决“换个说法就搜不到”）
+SYNONYM_GROUPS = [
+    ["比重", "占比", "所占比例", "比例"],
+    ["增长率", "增速", "增幅", "增长速度", "涨幅"],
+    ["增长量", "增量", "增加量", "净增"],
+    ["平均数", "人均", "平均值"],
+    ["倍数", "几倍"],
+    ["工程", "工程量", "工期"],
+    ["行程", "路程", "速度"],
+    ["削弱", "质疑", "反驳", "动摇"],
+    ["加强", "支持", "强化"],
+    ["对策", "建议", "措施", "办法"],
+    ["概括", "归纳", "总结", "提炼"],
+    ["标题", "题目", "命名"],
+    ["排序", "语序", "排列顺序"],
+    ["公文", "文书", "应用文"],
+    ["大作文", "议论文", "文章写作"],
+    ["时政", "时事", "热点"],
+    ["科技", "技术", "前沿"],
+    ["地理", "地形", "气候"],
+    ["法律", "法条", "法规"],
+    ["经济", "财经"],
+    ["图形", "图案", "图推"],
+    ["定义", "概念"],
+    ["类比", "比喻"],
+    ["逻辑", "推理"],
+]
+_EXPAND = {}
+for _g in SYNONYM_GROUPS:
+    for _w in _g:
+        _EXPAND.setdefault(_w, set()).update(_g)
+
+
+def _bigrams(s):
+    return {s[i:i + 2] for i in range(len(s) - 1)}
+
+
+def fuzzy_hit(kw, hay):
+    """同义词任一命中，或 2-gram 覆盖率 >= 0.6（容忍语序/个别字差异）。"""
+    for v in _EXPAND.get(kw, {kw}):
+        if v in hay:
+            return True
+    a, b = _bigrams(kw), set(hay)
+    if not a:
+        return kw in hay
+    hit = sum(1 for g in a if g in hay)
+    return hit / len(a) >= 0.6
+
+
+def match_keywords_fuzzy(rec, kws):
+    hay = " ".join([
+        rec.get("stem", ""), rec.get("ctx", ""), rec.get("material", ""),
+        " ".join((rec.get("opts") or {}).values()),
+        rec.get("expl", ""), rec.get("type", ""), rec.get("sub", ""),
+    ])
+    return all(fuzzy_hit(k, hay) for k in kws)
+
+
 def match_keywords(rec, kws):
     hay = " ".join([
         rec.get("stem", ""), rec.get("ctx", ""), rec.get("material", ""),
         " ".join((rec.get("opts") or {}).values()),
         rec.get("expl", ""), rec.get("ans", "") or "",
         " ".join(rec.get("kw") or []),
-        rec.get("type", ""), rec.get("module", ""), rec.get("code", ""),
+        rec.get("type", ""), rec.get("module", ""), rec.get("code", ""), rec.get("sub", ""),
     ])
     return all(k.lower() in hay for k in kws)
 
@@ -152,6 +211,8 @@ def fmt(rec, full=False, show_expl=True):
     head = f"[{rec['id']}] {rec['year']} {rec['prov']}·{rec['vol']}"
     num = rec.get("num") or rec.get("no")
     head += f" 第 {num} 题　| {rec['module']}·{rec['type']}（{rec['code']}）"
+    if rec.get("sub"):
+        head += f"　子考点：{rec['sub']}"
     out = [head]
     if rec.get("ctx"):
         ctx = rec["ctx"] if full else rec["ctx"][:160] + ("…" if len(rec["ctx"]) > 160 else "")
@@ -179,10 +240,12 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="公考真题知识库检索")
     ap.add_argument("--kw", action="append", default=[], help="关键词，可多次；多个为 AND")
     ap.add_argument("--any", nargs="*", default=[], help="任一词命中（OR）")
+    ap.add_argument("--fuzzy", action="store_true", help="模糊匹配：同义词 + 2-gram 相似（容忍换说法/错字）")
     ap.add_argument("--kaodian", "--code", dest="kaodian", action="append", default=[],
                     help="考点编码或考点名（如 ZL-BASE / 基期量计算）")
     ap.add_argument("--module", help="模块：资料分析/数量关系/言语理解/判断推理/常识判断/申论")
     ap.add_argument("--type", dest="type_", help="题型名，如 图形推理")
+    ap.add_argument("--sub", help="子考点名（三级），如 两期比重差 / 翻译推理 / 最不利构造")
     ap.add_argument("--year", type=int, action="append", default=[], help="年份，可多次（OR）")
     ap.add_argument("--from-year", type=int, help="起始年份")
     ap.add_argument("--to-year", type=int, help="结束年份")
@@ -227,6 +290,8 @@ def main(argv=None):
         sel = [r for r in sel if args.module in r["module"]]
     if args.type_:
         sel = [r for r in sel if args.type_ in r["type"]]
+    if args.sub:
+        sel = [r for r in sel if args.sub in (r.get("sub") or "")]
     if args.kaodian:
         want = set()
         for k in args.kaodian:
@@ -237,7 +302,10 @@ def main(argv=None):
                 want |= expand_codes([k])
         sel = [r for r in sel if r["code"] in want]
     if args.kw:
-        sel = [r for r in sel if match_keywords(r, args.kw)]
+        if args.fuzzy:
+            sel = [r for r in sel if match_keywords_fuzzy(r, args.kw)]
+        else:
+            sel = [r for r in sel if match_keywords(r, args.kw)]
     if args.any:
         sel = [r for r in sel if match_any(r, args.any)]
 

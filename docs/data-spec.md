@@ -23,6 +23,7 @@
 | `module` | string | 模块：资料分析 / 数量关系 / 言语理解 / 判断推理 / 常识判断 |
 | `type` | string | 题型名（对齐花生十三）：如 `基期量计算`、`逻辑填空`、`图形推理`、`政治常识` |
 | `code` | string | 考点编码，见 `docs/kaodian-taxonomy.md` |
+| `sub` | string | 三级子考点（如「两期比重差」「最不利构造」「翻译推理」），可直接用 `--sub` 检索 |
 | `stem` | string | 题干（已去除选项；资料分析题的材料见 `ctx`） |
 | `opts` | object | 选项，键为 `A/B/C/D`；图形题为空对象 |
 | `ans` | string\|null | 正确答案字母；`null` 表示原卷为扫描版、未提取到答案 |
@@ -43,6 +44,7 @@
 | `module` | string | 固定 `申论` |
 | `type` | string | `单一题（归纳概括）`/`综合分析题`/`提出对策题`/`公文写作题`/`大作文` |
 | `code` | string | `SN-DY`/`SN-ZH`/`SN-DC`/`SN-GW`/`SN-DZW` |
+| `sub` | string | 三级子考点（如「概括问题」「词句理解」「事务性公文」） |
 | `stem` | string | 题干 + 作答要求（分值、字数限制） |
 | `ans` | string | 参考答案 / 参考要点（可能为空） |
 | `material` | string | 本题所属申论材料全文（同学同卷的几道小题重复存放，便于单独使用） |

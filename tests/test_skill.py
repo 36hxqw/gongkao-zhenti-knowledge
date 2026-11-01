@@ -98,7 +98,16 @@ def main():
     out = run("--type", "图形推理", "--limit", "1").stdout
     check("配图" in out or not out, "图形题检索提示配图路径")
 
-    print("[11] SKILL.md frontmatter")
+    print("[11] 三级子考点与模糊检索")
+    out = run("--sub", "两期比重差", "--limit", "2").stdout
+    check("两期比重差" in out, "--sub 子考点检索命中")
+    check("子考点" in out, "输出展示子考点")
+    out = run("--kw", "占比", "--kw", "提高", "--fuzzy", "--limit", "2").stdout
+    check("命中" in out, "--fuzzy 模糊检索可用")
+    x = load_jsonl("xingce.jsonl")
+    check(all(r.get("sub") for r in x), "每题都有 sub 字段")
+
+    print("[12] SKILL.md frontmatter")
     with open(os.path.join(BASE, "SKILL.md"), encoding="utf-8") as f:
         head = f.read(2000)
     check(head.startswith("---") and "name: gongkao-zhenti-knowledge" in head, "frontmatter 含 name")

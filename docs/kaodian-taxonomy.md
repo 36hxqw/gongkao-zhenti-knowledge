@@ -18,15 +18,17 @@
 
 | 编码 | 题型 | 题量 | 出现年份 | 花生十三对齐位置 |
 |---|---|---:|---|---|
-| `ZL-BASE` | 基期量计算 | 436 | 2000–2026 | ziliao-fenxi.md#题型1 |
-| `ZL-GROW` | 增长量计算 | 90 | 2000–2026 | ziliao-fenxi.md#题型2 |
-| `ZL-RATE` | 增长率计算与比较 | 222 | 2000–2026 | ziliao-fenxi.md#题型3 |
-| `ZL-BILI` | 比重计算与比较 | 307 | 2000–2026 | ziliao-fenxi.md#题型4 |
-| `ZL-AVG` | 平均数计算 | 194 | 2001–2026 | ziliao-fenxi.md#题型5 |
-| `ZL-BEI` | 倍数计算 | 69 | 2000–2026 | ziliao-fenxi.md#题型6 |
-| `ZL-YEAR` | 年均增长率 | 47 | 2001–2026 | ziliao-fenxi.md#题型7 |
-| `ZL-PULL` | 拉动增长率与贡献率 | 1 | 2017–2017 | ziliao-fenxi.md#题型8 |
-| `ZL-COMP` | 综合分析 | 328 | 2003–2026 | ziliao-fenxi.md#题型9 |
+| `ZL-BASE` | 基期量计算 | 507 | 2000–2026 | ziliao-fenxi.md#题型1 |
+| `ZL-GROW` | 增长量计算 | 84 | 2000–2026 | ziliao-fenxi.md#题型2 |
+| `ZL-RATE` | 增长率计算与比较 | 230 | 2000–2026 | ziliao-fenxi.md#题型3 |
+| `ZL-BILI` | 比重计算与比较 | 268 | 2000–2026 | ziliao-fenxi.md#题型4 |
+| `ZL-AVG` | 平均数计算 | 175 | 2001–2026 | ziliao-fenxi.md#题型5 |
+| `ZL-BEI` | 倍数计算 | 67 | 2000–2026 | ziliao-fenxi.md#题型6 |
+| `ZL-YEAR` | 年均增长率 | 43 | 2001–2026 | ziliao-fenxi.md#题型7 |
+| `ZL-PULL` | 拉动增长率与贡献率 | 0 | — | ziliao-fenxi.md#题型8 |
+| `ZL-COMP` | 综合分析 | 320 | 2003–2026 | ziliao-fenxi.md#题型9 |
+
+> 本库未命中的题型（存量真题中未出现或抽取失败）：`ZL-PULL`
 
 ## 数量关系
 

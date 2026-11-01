@@ -7,15 +7,14 @@
 
 | 考点 | 编码 | 题量 | 年份跨度 | 文件 |
 |---|---|---:|---|---|
-| 基期量计算 | `ZL-BASE` | 436 | 2000–2026 | [ZL-BASE-基期量计算.md](kaodian/ZL-BASE-基期量计算.md) |
-| 增长量计算 | `ZL-GROW` | 90 | 2000–2026 | [ZL-GROW-增长量计算.md](kaodian/ZL-GROW-增长量计算.md) |
-| 增长率计算与比较 | `ZL-RATE` | 222 | 2000–2026 | [ZL-RATE-增长率计算与比较.md](kaodian/ZL-RATE-增长率计算与比较.md) |
-| 比重计算与比较 | `ZL-BILI` | 307 | 2000–2026 | [ZL-BILI-比重计算与比较.md](kaodian/ZL-BILI-比重计算与比较.md) |
-| 平均数计算 | `ZL-AVG` | 194 | 2001–2026 | [ZL-AVG-平均数计算.md](kaodian/ZL-AVG-平均数计算.md) |
-| 倍数计算 | `ZL-BEI` | 69 | 2000–2026 | [ZL-BEI-倍数计算.md](kaodian/ZL-BEI-倍数计算.md) |
-| 年均增长率 | `ZL-YEAR` | 47 | 2001–2026 | [ZL-YEAR-年均增长率.md](kaodian/ZL-YEAR-年均增长率.md) |
-| 拉动增长率与贡献率 | `ZL-PULL` | 1 | 2017 | [ZL-PULL-拉动增长率与贡献率.md](kaodian/ZL-PULL-拉动增长率与贡献率.md) |
-| 综合分析 | `ZL-COMP` | 328 | 2003–2026 | [ZL-COMP-综合分析.md](kaodian/ZL-COMP-综合分析.md) |
+| 基期量计算 | `ZL-BASE` | 507 | 2000–2026 | [ZL-BASE-基期量计算.md](kaodian/ZL-BASE-基期量计算.md) |
+| 增长量计算 | `ZL-GROW` | 84 | 2000–2026 | [ZL-GROW-增长量计算.md](kaodian/ZL-GROW-增长量计算.md) |
+| 增长率计算与比较 | `ZL-RATE` | 230 | 2000–2026 | [ZL-RATE-增长率计算与比较.md](kaodian/ZL-RATE-增长率计算与比较.md) |
+| 比重计算与比较 | `ZL-BILI` | 268 | 2000–2026 | [ZL-BILI-比重计算与比较.md](kaodian/ZL-BILI-比重计算与比较.md) |
+| 平均数计算 | `ZL-AVG` | 175 | 2001–2026 | [ZL-AVG-平均数计算.md](kaodian/ZL-AVG-平均数计算.md) |
+| 倍数计算 | `ZL-BEI` | 67 | 2000–2026 | [ZL-BEI-倍数计算.md](kaodian/ZL-BEI-倍数计算.md) |
+| 年均增长率 | `ZL-YEAR` | 43 | 2001–2026 | [ZL-YEAR-年均增长率.md](kaodian/ZL-YEAR-年均增长率.md) |
+| 综合分析 | `ZL-COMP` | 320 | 2003–2026 | [ZL-COMP-综合分析.md](kaodian/ZL-COMP-综合分析.md) |
 
 ### 数量关系
 

@@ -18,11 +18,14 @@
 
 | 痛点 | 本库的做法 |
 |---|---|
-| 想按考点刷真题，但题库和考点体系对不上 | 每题都带 `模块/题型/考点编码`，考点命名 100% 沿用花生十三体系（不自定义） |
-| 只记得几个零散词，找不到题 | `search.py` 支持多关键词 AND/OR + 考点/年份/省份交叉过滤，也可纯文本 grep |
+| 想按考点刷真题，但题库和考点体系对不上 | 每题都带 `模块/题型/考点编码`，考点命名 100% 沿用花生十三体系（不自定义）；另有 **185 个三级子考点**（两期比重差、最不利构造、翻译推理…） |
+| 只记得几个零散词，找不到题 | `search.py` 支持多关键词 AND/OR、`--sub` 子考点、`--fuzzy` 同义词+2-gram 模糊匹配，也可纯文本 grep |
 | 需要"原题 + 答案 + 解析"一起给 | 每题保留题干、A–D 选项、正确答案、原解析节选、来源文件 |
-| 想知道"这个考点到底怎么考" | 46 个考点文件内含题量趋势、地区差异、近六年分布、典型原题 |
+| 同一道题在国考三卷、多年重复出现 | 同题折叠：默认只出主记录，并告诉你"这题还考过哪几年" |
+| 图形推理、资料分析图表题看不到图 | 2 332 张按题号自动裁切的原题配图，Markdown 内嵌 + 检索结果给出路径 |
+| 想知道"这个考点到底怎么考" | 48 个考点文件内含题量趋势、地区差异、近六年分布、典型原题 |
 | 讲了真题却讲不了技巧 | 与花生十三 skill 联动映射表，精确到 `文件#章节` |
+| 想直接刷一套 / 记错题 | `paper.py` 按考点配比组卷（含答案页），`wrongbook.py` 记录错题并按四类错因出复习报告 |
 
 ---
 
@@ -33,8 +36,8 @@
 | 行测试卷 | 98 套（国考 47 / 广东 32 / 湖北 19） |
 | 行测题目 | 11 393 题（含答案 8 497 题；同题变体 1 136 条已折叠） |
 | 申论试卷 | 105 套 |
-| 申论小题 | 414 题（338 题含参考答案） |
-| 考点 | 46 个有题考点，覆盖 6 大模块、49 个编码 |
+| 申论小题 | 419 题（含参考答案） |
+| 考点 | 48 个有题考点，覆盖 6 大模块、49 个编码；三级子考点 193 个标签 |
 | 原题配图 | 2 332 张（图形推理的图形、图表型资料分析材料） |
 | 年份跨度 | 2000–2026（含 2026 国考、广东、湖北最新卷） |
 
@@ -54,26 +57,34 @@ gongkao-zhenti-knowledge/
 ├── CHANGELOG.md
 ├── skill.json                    # 元数据镜像（部分平台读取）
 ├── docs/
-│   ├── kaodian-taxonomy.md       # 考点体系全表 + 与花生十三的对齐映射
+│   ├── kaodian-taxonomy.md       # 考点体系全表（三级）+ 与花生十三的对齐映射
 │   ├── data-spec.md              # 字段规范与数据口径
 │   ├── coverage.md               # 覆盖范围与已知缺口
-│   └── install.md                # 豆包 / 通用宿主 / 本地 CLI 安装
+│   ├── install.md                # 豆包 / 通用宿主 / 本地 CLI 安装
+│   └── eval.md                   # 评测集与指标口径
 ├── references/
 │   ├── 00-index.md               # 总索引（考点→文件、试卷→文件）
 │   ├── 01-命题规律总览.md         # 分省分年模块矩阵、高频考点 TOP20、题型变迁
-│   ├── kaodian/                  # 46 个考点文件：规律 + 原题 + 答案 + 解析
+│   ├── kaodian/                  # 48 个考点文件：规律 + 原题 + 答案 + 解析
 │   ├── juan/                     # 98 套行测原卷（题目 + 答案 + 考点）
-│   └── shenlun/                  # 105 套申论原卷（材料 + 题目 + 参考答案）
+│   ├── shenlun/                  # 106 套申论原卷（材料 + 题目 + 参考答案）
+│   └── images/                   # 2 332 张原题配图（自动裁切）
 ├── data/
 │   ├── xingce.jsonl              # 行测题库
 │   ├── shenlun.jsonl             # 申论题库
 │   ├── search-index.tsv          # 检索索引（短行，适合 grep）
 │   └── stats.json
 ├── scripts/
-│   ├── search.py                 # 检索 CLI（零依赖）
+│   ├── search.py                 # 检索 CLI（考点/子考点/多关键词/模糊，零依赖）
+│   ├── paper.py                  # 组卷：按考点轮转抽样，输出试卷 + 答案页
+│   ├── wrongbook.py              # 错题本：记录 / 归因 / 复盘报告
 │   └── selfcheck.py              # 数据自检
 ├── tests/
-│   └── test_skill.py             # 冒烟测试（10 项，stdlib）
+│   ├── test_skill.py             # 检索与数据一致性冒烟测试
+│   ├── test_tools.py             # 组卷 / 错题本测试
+│   ├── eval.py                   # 分类准确率评测
+│   └── gold*.jsonl               # 评测集（强标注 / 弱标注两档）
+├── .github/workflows/ci.yml      # CI：自检 + 测试 + 评测
 └── tools/pipeline/               # 从原始 PDF 复现本库的采集流水线
 ```
 
@@ -104,8 +115,25 @@ python scripts/search.py --year 2024 --prov 广东 --module 资料分析 --limit
 # 按 ID 取完整题目（含解析）
 python scripts/search.py --id GK-2025-fs-X010 --full
 
+# 三级子考点（最精准）：两期比重差 / 最不利构造 / 翻译推理 …
+python scripts/search.py --sub 两期比重差 --prov 国考
+
+# 模糊检索：同义词 + 2-gram，换说法/错字也能中
+python scripts/search.py --kw 占比 --kw 提高 --fuzzy
+
+# 组卷：按考点轮转抽样，输出试卷 + 答案页
+python scripts/paper.py --module 资料分析 --count 20 --prov 国考 --years 2019-2026 --out out/套卷.md
+
+# 错题本：记录 → 归因 → 复盘报告
+python scripts/wrongbook.py add --id GK-2024-fs-X112 --reason 技巧不熟 --note "两期比重差算成增长率"
+python scripts/wrongbook.py stats
+python scripts/wrongbook.py report --out out/wrongbook.md
+
 # 列出全部考点与题量
 python scripts/search.py --list-kaodian
+
+# 自检 / 测试 / 评测
+python scripts/selfcheck.py && python tests/test_skill.py && python tests/eval.py
 ```
 
 真实输出示例：

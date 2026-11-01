@@ -14,9 +14,9 @@ DATA = os.path.join(BASE, "data")
 VALID_CODES = {
     "ZL-BASE", "ZL-GROW", "ZL-RATE", "ZL-BILI", "ZL-AVG", "ZL-BEI", "ZL-YEAR", "ZL-PULL", "ZL-COMP",
     "SL-GC", "SL-XC", "SL-LR", "SL-PL", "SL-GL", "SL-RC", "SL-ZZ", "SL-NL", "SL-JH", "SL-RY",
-    "SL-NCC", "SL-JT", "SL-SZ",
+    "SL-NCC", "SL-JT", "SL-SZ", "SL-OT",
     "YY-LJTK", "YY-ZXJL", "YY-XJPD", "YY-BTTR", "YY-YJTR", "YY-XWTD", "YY-YJXH", "YY-YJPX", "YY-PZYD",
-    "PD-TX", "PD-DY", "PD-LB", "PD-LJ", "PD-KX",
+    "PD-TX", "PD-DY", "PD-LB", "PD-LJ", "PD-KX", "PD-SJ",
     "CS-ZZ", "CS-JJ", "CS-FL", "CS-LS", "CS-DL", "CS-KJ", "CS-SZ", "CS-SH",
     "SN-DY", "SN-ZH", "SN-DC", "SN-GW", "SN-DZW",
 }

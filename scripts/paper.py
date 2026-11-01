@@ -87,7 +87,9 @@ def read_jsonl(name):
 def parse_years(text):
     """把 '2024' / '2019-2026' / '2019,2021,2024' 解析成年份集合。"""
     years = set()
-    for part in YEAR_SPLIT.split(text.strip()):
+    # 允许「2019 - 2026」这种带空格的区间写法
+    text = re.sub(r"\s*([-~—–至])\s*", r"\1", text.strip())
+    for part in YEAR_SPLIT.split(text):
         if not part:
             continue
         m = YEAR_RANGE.match(part)
@@ -247,10 +249,11 @@ def render_question(idx, rec):
         out.append("**题干**：（原卷题干为图形/公式，见下方配图）")
     out.append("")
 
-    opts = rec.get("opts") or {}
-    if opts:
+    opts = {k: one_line(v) for k, v in (rec.get("opts") or {}).items()}
+    if opts and any(opts.values()):
         for key in sorted(opts):
-            out.append(f"- **{key}.** {one_line(opts[key])}")
+            value = opts[key] or ("（见配图）" if img else "（原卷缺此选项）")
+            out.append(f"- **{key}.** {value}")
     elif img:
         out.append("- （原卷选项为图形/表格，见下方配图）")
     else:

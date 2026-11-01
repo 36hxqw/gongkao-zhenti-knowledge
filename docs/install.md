@@ -62,14 +62,33 @@ python scripts/search.py --any 新质生产力 低空经济 未来产业
 # 4) 某年某省全部资料分析题
 python scripts/search.py --year 2024 --prov 广东 --module 资料分析 --limit 20
 
-# 5) 按 ID 取完整题目（含解析）
+# 5) 三级子考点（最精准）：两期比重差 / 最不利构造 / 翻译推理 …
+python scripts/search.py --sub 两期比重差 --prov 国考 --limit 5
+
+# 6) 模糊检索：同义词 + 2-gram，容忍换说法与错字
+python scripts/search.py --kw 占比 --kw 提高 --fuzzy --limit 5
+
+# 7) 按 ID 取完整题目（含解析）
 python scripts/search.py --id GD-2023-xj-X045 --full
 
-# 6) 列出所有考点与题量
+# 8) 展开同题变体（默认折叠，只出主记录）
+python scripts/search.py --kaodian ZL-BILI --all-variants --limit 10
+
+# 9) 列出所有考点与题量
 python scripts/search.py --list-kaodian
 
-# 7) 数据自检
+# 10) 组卷（按考点轮转抽样，输出试卷 + 答案页）
+python scripts/paper.py --module 资料分析 --count 20 --prov 国考 --years 2019-2026 --out out/套卷.md
+
+# 11) 错题本
+python scripts/wrongbook.py add --id GK-2024-fs-X112 --reason 技巧不熟 --note "比重差算成增长率"
+python scripts/wrongbook.py list
+python scripts/wrongbook.py report --out out/wrongbook.md
+
+# 12) 数据自检 / 评测 / 测试
 python scripts/selfcheck.py
+python tests/eval.py
+python tests/test_skill.py
 ```
 
 Windows PowerShell 中把 `python` 换成 `py` 或实际解释器路径即可；若中文输出乱码，先执行 `$env:PYTHONIOENCODING='utf-8'`。

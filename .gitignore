@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.py[cod]
 .venv/
@@ -20,3 +20,7 @@ pipeline/_*.png
 pipeline/_ocr*/
 tools/pipeline/cache/
 tools/pipeline/out/
+
+# 用户数据与临时产出
+user/
+out/

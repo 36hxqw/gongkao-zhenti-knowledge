@@ -26,13 +26,14 @@
 | 排列组合 | `SL-PL` | 53 | 2004–2026 | [SL-PL-排列组合.md](kaodian/SL-PL-排列组合.md) |
 | 概率问题 | `SL-GL` | 50 | 2009–2026 | [SL-GL-概率问题.md](kaodian/SL-GL-概率问题.md) |
 | 容斥问题 | `SL-RC` | 28 | 2005–2025 | [SL-RC-容斥问题.md](kaodian/SL-RC-容斥问题.md) |
-| 最值问题 | `SL-ZZ` | 527 | 2000–2026 | [SL-ZZ-最值问题.md](kaodian/SL-ZZ-最值问题.md) |
+| 最值问题 | `SL-ZZ` | 102 | 2000–2026 | [SL-ZZ-最值问题.md](kaodian/SL-ZZ-最值问题.md) |
 | 年龄问题 | `SL-NL` | 30 | 2000–2026 | [SL-NL-年龄问题.md](kaodian/SL-NL-年龄问题.md) |
 | 几何问题 | `SL-JH` | 94 | 2002–2026 | [SL-JH-几何问题.md](kaodian/SL-JH-几何问题.md) |
 | 溶液问题 | `SL-RY` | 10 | 2005–2024 | [SL-RY-溶液问题.md](kaodian/SL-RY-溶液问题.md) |
 | 牛吃草问题 | `SL-NCC` | 2 | 2006–2009 | [SL-NCC-牛吃草问题.md](kaodian/SL-NCC-牛吃草问题.md) |
 | 鸡兔同笼 | `SL-JT` | 4 | 2005–2019 | [SL-JT-鸡兔同笼.md](kaodian/SL-JT-鸡兔同笼.md) |
 | 数字推理 | `SL-SZ` | 265 | 2000–2026 | [SL-SZ-数字推理.md](kaodian/SL-SZ-数字推理.md) |
+| 其他数量关系 | `SL-OT` | 425 | 2000–2026 | [SL-OT-其他数量关系.md](kaodian/SL-OT-其他数量关系.md) |
 
 ### 言语理解
 
@@ -50,11 +51,12 @@
 
 | 考点 | 编码 | 题量 | 年份跨度 | 文件 |
 |---|---|---:|---|---|
-| 图形推理 | `PD-TX` | 801 | 2000–2026 | [PD-TX-图形推理.md](kaodian/PD-TX-图形推理.md) |
+| 图形推理 | `PD-TX` | 799 | 2000–2026 | [PD-TX-图形推理.md](kaodian/PD-TX-图形推理.md) |
 | 定义判断 | `PD-DY` | 383 | 2004–2026 | [PD-DY-定义判断.md](kaodian/PD-DY-定义判断.md) |
-| 类比推理 | `PD-LB` | 703 | 2004–2026 | [PD-LB-类比推理.md](kaodian/PD-LB-类比推理.md) |
-| 逻辑判断 | `PD-LJ` | 1126 | 2000–2026 | [PD-LJ-逻辑判断.md](kaodian/PD-LJ-逻辑判断.md) |
-| 科学推理 | `PD-KX` | 28 | 2000–2025 | [PD-KX-科学推理.md](kaodian/PD-KX-科学推理.md) |
+| 类比推理 | `PD-LB` | 702 | 2006–2026 | [PD-LB-类比推理.md](kaodian/PD-LB-类比推理.md) |
+| 逻辑判断 | `PD-LJ` | 1058 | 2000–2026 | [PD-LJ-逻辑判断.md](kaodian/PD-LJ-逻辑判断.md) |
+| 科学推理 | `PD-KX` | 24 | 2004–2025 | [PD-KX-科学推理.md](kaodian/PD-KX-科学推理.md) |
+| 事件排序 | `PD-SJ` | 75 | 2000–2005 | [PD-SJ-事件排序.md](kaodian/PD-SJ-事件排序.md) |
 
 ### 常识判断
 

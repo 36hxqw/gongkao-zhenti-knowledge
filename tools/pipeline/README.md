@@ -44,9 +44,10 @@ python survey.py          # 1. 探测每个 PDF 的文字层（找出扫描件�
 python build_xingce.py    # 2. 行测：题目解析 + 答案解析 + 配对 → out/xingce_raw.jsonl
 python build_shenlun.py   # 3. 申论：材料/题目/参考答案 → out/shenlun_raw.jsonl
 python finalize.py        # 4. 考点分类 + 关键词 + ID + 统计 → ../../data/
-python gen_docs.py        # 5. 生成 references/kaodian、juan、shenlun、总索引、规律总览
-python gen_taxonomy_doc.py# 6. 生成 docs/kaodian-taxonomy.md
-cd ../.. && python scripts/selfcheck.py   # 7. 自检
+python make_images.py --all # 5. 生成题区配图（2300+ 张，约 30MB）
+python gen_docs.py        # 6. 生成 references/kaodian、juan、shenlun、总索引、规律总览
+python gen_taxonomy_doc.py# 7. 生成 docs/kaodian-taxonomy.md
+cd ../.. && python scripts/selfcheck.py   # 8. 自检
 ```
 
 ## 各模块职责

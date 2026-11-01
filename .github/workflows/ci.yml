@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: 数据自检 + 冒烟测试 + 评测
+    runs-on: ubuntu-latest
+    env:
+      PYTHONIOENCODING: utf-8
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 数据自检
+        run: python scripts/selfcheck.py
+
+      - name: 冒烟测试
+        run: python tests/test_skill.py
+
+      - name: 工具测试（文件可能尚未提供）
+        run: if [ -f tests/test_tools.py ]; then python tests/test_tools.py; else echo "tests/test_tools.py 不存在，跳过"; fi
+
+      - name: 考点标注质量评测
+        run: python tests/eval.py

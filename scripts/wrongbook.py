@@ -419,6 +419,8 @@ def cmd_list(args):
             print(f"    备注：{entry['note']}")
         if rec.get("ctx"):
             print(f"    材料：{one_line(rec['ctx'])[:120]}")
+        elif rec.get("material"):
+            print(f"    材料：{one_line(rec['material'])[:120]}")
         print(f"    题干：{rec.get('stem') or ''}")
         opts = rec.get("opts") or {}
         if opts:

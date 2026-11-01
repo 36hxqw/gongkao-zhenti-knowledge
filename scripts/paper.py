@@ -274,7 +274,7 @@ def render_answers(picked):
         ans = rec.get("ans") or "—"
         expl = cell(rec.get("expl"))
         if len(expl) > 200:
-            expl = expl[:200] + "…"
+            expl = expl[:199].rstrip() + "…"
         if not expl:
             expl = "（原卷无解析）"
         out.append(f"| {i} | {ans} | {cell(rec['module'] + '·' + rec['type'])} | "

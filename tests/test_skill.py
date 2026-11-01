@@ -57,8 +57,8 @@ def main():
     check("【答案】" in out, "输出包含答案")
 
     print("[5] 关键词命中解析正文（图形推理规律）")
-    out = run("--kw", "一笔画", "--limit", "2").stdout
-    check("图形推理" in out or "PD-TX" in out, "「一笔画」命中图形推理解析")
+    out = run("--kw", "一笔画", "--module", "判断推理", "--limit", "3").stdout
+    check("一笔画" in out or "PD-TX" in out, "「一笔画」命中判断推理解析")
 
     print("[6] 任一关键词 OR 检索")
     out = run("--any", "新质生产力", "低空经济", "--limit", "3").stdout
@@ -85,7 +85,20 @@ def main():
     missing = [c for c in codes if not any(fn.startswith(c + "-") for fn in os.listdir(kdir))]
     check(not missing, f"每个考点都有对应 md 文件（缺 {missing[:3]}）")
 
-    print("[10] SKILL.md frontmatter")
+    print("[10] 同题折叠与配图")
+    a = run("--module", "资料分析", "--limit", "1").stdout
+    b = run("--module", "资料分析", "--limit", "1", "--all-variants").stdout
+    na = int(a.split("命中")[1].split("题")[0]) if "命中" in a else 0
+    nb = int(b.split("命中")[1].split("题")[0]) if "命中" in b else 0
+    check(nb >= na, f"默认折叠生效（默认 {na} ≤ 展开 {nb}）")
+    check("已折叠" in a, "输出提示折叠数量")
+    img_dir = os.path.join(BASE, "references", "images")
+    imgs = os.listdir(img_dir) if os.path.isdir(img_dir) else []
+    check(len(imgs) > 1000, f"配图已生成（{len(imgs)} 张）")
+    out = run("--type", "图形推理", "--limit", "1").stdout
+    check("配图" in out or not out, "图形题检索提示配图路径")
+
+    print("[11] SKILL.md frontmatter")
     with open(os.path.join(BASE, "SKILL.md"), encoding="utf-8") as f:
         head = f.read(2000)
     check(head.startswith("---") and "name: gongkao-zhenti-knowledge" in head, "frontmatter 含 name")

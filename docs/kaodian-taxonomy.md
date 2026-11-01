@@ -10,7 +10,7 @@
 
 **编码规则**：`模块前缀-题型缩写`。ZL=资料分析，SL=数量关系，YY=言语理解，PD=判断推理，CS=常识判断，SN=申论。
 
-**总题量**：11807 题（行测 11393 + 申论 414）
+**总题量**：11812 题（行测 11393 + 申论 419）
 
 ## 资料分析
 
@@ -18,15 +18,15 @@
 
 | 编码 | 题型 | 题量 | 出现年份 | 花生十三对齐位置 |
 |---|---|---:|---|---|
-| `ZL-BASE` | 基期量计算 | 507 | 2000–2026 | ziliao-fenxi.md#题型1 |
-| `ZL-GROW` | 增长量计算 | 84 | 2000–2026 | ziliao-fenxi.md#题型2 |
+| `ZL-BASE` | 基期量计算 | 493 | 2000–2026 | ziliao-fenxi.md#题型1 |
+| `ZL-GROW` | 增长量计算 | 86 | 2000–2026 | ziliao-fenxi.md#题型2 |
 | `ZL-RATE` | 增长率计算与比较 | 230 | 2000–2026 | ziliao-fenxi.md#题型3 |
-| `ZL-BILI` | 比重计算与比较 | 268 | 2000–2026 | ziliao-fenxi.md#题型4 |
-| `ZL-AVG` | 平均数计算 | 175 | 2001–2026 | ziliao-fenxi.md#题型5 |
-| `ZL-BEI` | 倍数计算 | 67 | 2000–2026 | ziliao-fenxi.md#题型6 |
+| `ZL-BILI` | 比重计算与比较 | 269 | 2000–2026 | ziliao-fenxi.md#题型4 |
+| `ZL-AVG` | 平均数计算 | 182 | 2001–2026 | ziliao-fenxi.md#题型5 |
+| `ZL-BEI` | 倍数计算 | 70 | 2000–2026 | ziliao-fenxi.md#题型6 |
 | `ZL-YEAR` | 年均增长率 | 43 | 2001–2026 | ziliao-fenxi.md#题型7 |
 | `ZL-PULL` | 拉动增长率与贡献率 | 0 | — | ziliao-fenxi.md#题型8 |
-| `ZL-COMP` | 综合分析 | 320 | 2003–2026 | ziliao-fenxi.md#题型9 |
+| `ZL-COMP` | 综合分析 | 321 | 2003–2026 | ziliao-fenxi.md#题型9 |
 
 > 本库未命中的题型（存量真题中未出现或抽取失败）：`ZL-PULL`
 
@@ -37,12 +37,12 @@
 | 编码 | 题型 | 题量 | 出现年份 | 花生十三对齐位置 |
 |---|---|---:|---|---|
 | `SL-GC` | 工程问题 | 61 | 2002–2026 | shuliang-guanxi.md#题型1 |
-| `SL-XC` | 行程问题 | 99 | 2000–2026 | shuliang-guanxi.md#题型2 |
+| `SL-XC` | 行程问题 | 100 | 2000–2026 | shuliang-guanxi.md#题型2 |
 | `SL-LR` | 利润问题 | 58 | 2000–2026 | shuliang-guanxi.md#题型3 |
 | `SL-PL` | 排列组合 | 65 | 2004–2026 | shuliang-guanxi.md#题型4 |
 | `SL-GL` | 概率问题 | 59 | 2009–2026 | shuliang-guanxi.md#题型5 |
 | `SL-RC` | 容斥问题 | 31 | 2005–2025 | shuliang-guanxi.md#题型6 |
-| `SL-ZZ` | 最值问题 | 583 | 2000–2026 | shuliang-guanxi.md#题型7 |
+| `SL-ZZ` | 最值问题 | 582 | 2000–2026 | shuliang-guanxi.md#题型7 |
 | `SL-NL` | 年龄问题 | 37 | 2000–2026 | shuliang-guanxi.md#题型8 |
 | `SL-JH` | 几何问题 | 107 | 2002–2026 | shuliang-guanxi.md#题型9 |
 | `SL-RY` | 溶液问题 | 10 | 2005–2024 | shuliang-guanxi.md#题型10 |
@@ -56,14 +56,14 @@
 
 | 编码 | 题型 | 题量 | 出现年份 | 花生十三对齐位置 |
 |---|---|---:|---|---|
-| `YY-LJTK` | 逻辑填空 | 1451 | 2001–2026 | yanyu-lianjie.md#二 |
-| `YY-ZXJL` | 中心理解 | 986 | 2000–2026 | yanyu-lianjie.md#3.1 |
+| `YY-LJTK` | 逻辑填空 | 1461 | 2001–2026 | yanyu-lianjie.md#二 |
+| `YY-ZXJL` | 中心理解 | 997 | 2000–2026 | yanyu-lianjie.md#3.1 |
 | `YY-XJPD` | 细节判断 | 69 | 2000–2026 | yanyu-lianjie.md#3.2 |
 | `YY-BTTR` | 标题填入 | 73 | 2003–2026 | yanyu-lianjie.md#3.3 |
 | `YY-YJTR` | 语句填入 | 18 | 2003–2026 | yanyu-lianjie.md#3.4 |
-| `YY-XWTD` | 下文推断 | 59 | 2007–2026 | yanyu-lianjie.md#3.5 |
+| `YY-XWTD` | 下文推断 | 61 | 2007–2026 | yanyu-lianjie.md#3.5 |
 | `YY-YJXH` | 语句衔接 | 0 | — | yanyu-lianjie.md#4.2 |
-| `YY-YJPX` | 语句排序 | 106 | 2002–2026 | yanyu-lianjie.md#4.1 |
+| `YY-YJPX` | 语句排序 | 108 | 2002–2026 | yanyu-lianjie.md#4.1 |
 | `YY-PZYD` | 篇章阅读 | 0 | — | yanyu-lianjie.md#五 |
 
 > 本库未命中的题型（存量真题中未出现或抽取失败）：`YY-YJXH`、`YY-PZYD`
@@ -74,11 +74,11 @@
 
 | 编码 | 题型 | 题量 | 出现年份 | 花生十三对齐位置 |
 |---|---|---:|---|---|
-| `PD-TX` | 图形推理 | 826 | 2000–2026 | panduan-tuili.md#一 |
-| `PD-DY` | 定义判断 | 503 | 2002–2026 | panduan-tuili.md#二 |
-| `PD-LB` | 类比推理 | 711 | 2004–2026 | panduan-tuili.md#三 |
-| `PD-LJ` | 逻辑判断 | 1252 | 2000–2026 | panduan-tuili.md#四 |
-| `PD-KX` | 科学推理 | 32 | 2000–2025 | 体系外补充（广东特色，归入判断推理） |
+| `PD-TX` | 图形推理 | 833 | 2000–2026 | panduan-tuili.md#一 |
+| `PD-DY` | 定义判断 | 471 | 2004–2026 | panduan-tuili.md#二 |
+| `PD-LB` | 类比推理 | 705 | 2004–2026 | panduan-tuili.md#三 |
+| `PD-LJ` | 逻辑判断 | 1282 | 2000–2026 | panduan-tuili.md#四 |
+| `PD-KX` | 科学推理 | 33 | 2000–2025 | 体系外补充（广东特色，归入判断推理） |
 
 ## 常识判断
 
@@ -86,13 +86,13 @@
 
 | 编码 | 题型 | 题量 | 出现年份 | 花生十三对齐位置 |
 |---|---|---:|---|---|
-| `CS-ZZ` | 政治常识 | 1227 | 2000–2026 | changshi-panduan.md#2.1 |
-| `CS-JJ` | 经济常识 | 182 | 2000–2026 | changshi-panduan.md#2.2 |
-| `CS-FL` | 法律常识 | 246 | 2002–2026 | changshi-panduan.md#2.3 |
-| `CS-LS` | 历史人文 | 206 | 2000–2026 | changshi-panduan.md#2.4 |
-| `CS-DL` | 地理常识 | 110 | 2002–2026 | changshi-panduan.md#2.5 |
-| `CS-KJ` | 科技常识 | 121 | 2001–2026 | changshi-panduan.md#2.6 |
-| `CS-SZ` | 时事政治 | 68 | 2003–2026 | changshi-panduan.md#2.7 |
+| `CS-ZZ` | 政治常识 | 1239 | 2000–2026 | changshi-panduan.md#2.1 |
+| `CS-JJ` | 经济常识 | 172 | 2000–2026 | changshi-panduan.md#2.2 |
+| `CS-FL` | 法律常识 | 238 | 2002–2026 | changshi-panduan.md#2.3 |
+| `CS-LS` | 历史人文 | 196 | 2000–2026 | changshi-panduan.md#2.4 |
+| `CS-DL` | 地理常识 | 106 | 2002–2026 | changshi-panduan.md#2.5 |
+| `CS-KJ` | 科技常识 | 118 | 2001–2026 | changshi-panduan.md#2.6 |
+| `CS-SZ` | 时事政治 | 66 | 2003–2026 | changshi-panduan.md#2.7 |
 | `CS-SH` | 生活常识 | 62 | 2006–2026 | changshi-panduan.md#2.8 |
 
 ## 申论
@@ -101,11 +101,11 @@
 
 | 编码 | 题型 | 题量 | 出现年份 | 花生十三对齐位置 |
 |---|---|---:|---|---|
-| `SN-DY` | 单一题（归纳概括） | 150 | 2000–2026 | shenlun.md#二 |
-| `SN-ZH` | 综合分析题 | 60 | 2000–2026 | shenlun.md#三 |
-| `SN-DC` | 提出对策题 | 68 | 2000–2026 | shenlun.md#四 |
-| `SN-GW` | 公文写作题 | 63 | 2003–2026 | shenlun.md#五 |
-| `SN-DZW` | 大作文 | 73 | 2001–2026 | shenlun.md#六 |
+| `SN-DY` | 单一题（归纳概括） | 151 | 2000–2026 | shenlun.md#二 |
+| `SN-ZH` | 综合分析题 | 61 | 2000–2026 | shenlun.md#三 |
+| `SN-DC` | 提出对策题 | 69 | 2000–2026 | shenlun.md#四 |
+| `SN-GW` | 公文写作题 | 64 | 2003–2026 | shenlun.md#五 |
+| `SN-DZW` | 大作文 | 74 | 2001–2026 | shenlun.md#六 |
 
 ## 体系外补充说明
 

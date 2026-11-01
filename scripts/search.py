@@ -161,6 +161,11 @@ def fmt(rec, full=False, show_expl=True):
     if opts:
         line = "  " + "　".join(f"{k}. {v}" for k, v in opts.items())
         out.append(line)
+    img = os.path.join(BASE, "references", "images", rec["id"] + ".jpg")
+    if os.path.exists(img):
+        out.append(f"  配图：references/images/{rec['id']}.jpg")
+    if rec.get("dup_n", 1) > 1:
+        out.append(f"  （同题另有 {rec['dup_n'] - 1} 个变体，--all-variants 展开）")
     out.append(f"  【答案】{rec.get('ans') or '暂缺（原卷为扫描版）'}")
     if show_expl and rec.get("expl"):
         expl = rec["expl"] if full else rec["expl"][:220] + ("…" if len(rec["expl"]) > 220 else "")
@@ -190,6 +195,7 @@ def main(argv=None):
     ap.add_argument("--shenlun", action="store_true", help="只检索申论")
     ap.add_argument("--xingce", action="store_true", help="只检索行测")
     ap.add_argument("--list-kaodian", action="store_true", help="列出全部考点及题量")
+    ap.add_argument("--all-variants", action="store_true", help="展开同题变体（默认折叠，只出主记录）")
     args = ap.parse_args(argv)
 
     xingce = [] if args.shenlun else _read_jsonl("xingce.jsonl")
@@ -235,6 +241,9 @@ def main(argv=None):
     if args.any:
         sel = [r for r in sel if match_any(r, args.any)]
 
+    if not args.all_variants:
+        sel = [r for r in sel if r.get("canonical", r["id"]) == r["id"]]
+
     # 排序：年份新 → 省份（国考/广东/湖北）→ 题号
     order = {"国考": 0, "广东": 1, "湖北": 2}
     sel.sort(key=lambda r: (-(r["year"] or 0), order.get(r["prov"], 9),
@@ -248,7 +257,9 @@ def main(argv=None):
         print("未命中任何题目。建议：①减少关键词（只留 2 个）②换同义词（比重/占比、增速/增长率）"
               "③去掉省份或年份限制 ④用 --any 改为任一词命中。", file=sys.stderr)
         return 2
-    print(f"命中 {len(sel)} 题，显示前 {min(args.limit, len(sel))} 题：\n")
+    folded = sum(1 for r in recs if r.get("canonical", r["id"]) != r["id"])
+    tip = f"（已折叠 {folded} 条同题变体，--all-variants 可展开）" if not args.all_variants and folded else ""
+    print(f"命中 {len(sel)} 题{tip}，显示前 {min(args.limit, len(sel))} 题：\n")
     for r in sel[: args.limit]:
         print(fmt(r, full=args.full))
         print("-" * 72)

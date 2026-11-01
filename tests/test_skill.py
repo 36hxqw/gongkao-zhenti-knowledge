@@ -122,9 +122,23 @@ def main():
     check("难度" in out, "--diff 难度过滤可用")
     out = run("--theme", "基层治理", "--limit", "1").stdout
     check("主题" in out, "--theme 主题过滤可用")
-    dist = os.path.join(BASE, "dist")
-    zips = [f for f in os.listdir(dist)] if os.path.isdir(dist) else []
-    check(any(f.endswith(".zip") for f in zips), f"发行包已生成（{len(zips)} 个文件）")
+    import tempfile, zipfile
+    tmpd = tempfile.mkdtemp(prefix="rel-")
+    try:
+        rc = subprocess.run([PY, os.path.join(BASE, "scripts", "make_release.py"),
+                             "--lite", "--version", "0.0.1", "--out", tmpd],
+                            capture_output=True, text=True, encoding="utf-8")
+        zips = [f for f in os.listdir(tmpd) if f.endswith(".zip")]
+        check(rc.returncode == 0 and zips, "lite 发行包可构建")
+        if zips:
+            with zipfile.ZipFile(os.path.join(tmpd, zips[0])) as z:
+                names = z.namelist()
+            check(any(n.endswith("SKILL.md") for n in names), "lite 含 SKILL.md")
+            check(not any(n.endswith("xingce.jsonl") for n in names), "lite 不含 JSONL 题库")
+            check(not any("/images/" in n for n in names), "lite 不含配图")
+    finally:
+        import shutil as _sh
+        _sh.rmtree(tmpd, ignore_errors=True)
 
     print("[13] SKILL.md frontmatter")
     with open(os.path.join(BASE, "SKILL.md"), encoding="utf-8") as f:

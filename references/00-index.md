@@ -7,14 +7,14 @@
 
 | 考点 | 编码 | 题量 | 年份跨度 | 文件 |
 |---|---|---:|---|---|
-| 基期量计算 | `ZL-BASE` | 467 | 2000–2026 | [ZL-BASE-基期量计算.md](kaodian/ZL-BASE-基期量计算.md) |
+| 基期量计算 | `ZL-BASE` | 18 | 2004–2026 | [ZL-BASE-基期量计算.md](kaodian/ZL-BASE-基期量计算.md) |
 | 增长量计算 | `ZL-GROW` | 74 | 2000–2026 | [ZL-GROW-增长量计算.md](kaodian/ZL-GROW-增长量计算.md) |
 | 增长率计算与比较 | `ZL-RATE` | 210 | 2000–2026 | [ZL-RATE-增长率计算与比较.md](kaodian/ZL-RATE-增长率计算与比较.md) |
 | 比重计算与比较 | `ZL-BILI` | 233 | 2000–2026 | [ZL-BILI-比重计算与比较.md](kaodian/ZL-BILI-比重计算与比较.md) |
 | 平均数计算 | `ZL-AVG` | 165 | 2001–2026 | [ZL-AVG-平均数计算.md](kaodian/ZL-AVG-平均数计算.md) |
 | 倍数计算 | `ZL-BEI` | 63 | 2000–2026 | [ZL-BEI-倍数计算.md](kaodian/ZL-BEI-倍数计算.md) |
 | 年均增长率 | `ZL-YEAR` | 39 | 2001–2026 | [ZL-YEAR-年均增长率.md](kaodian/ZL-YEAR-年均增长率.md) |
-| 综合分析 | `ZL-COMP` | 304 | 2003–2026 | [ZL-COMP-综合分析.md](kaodian/ZL-COMP-综合分析.md) |
+| 综合分析 | `ZL-COMP` | 753 | 2000–2026 | [ZL-COMP-综合分析.md](kaodian/ZL-COMP-综合分析.md) |
 
 ### 数量关系
 
@@ -52,23 +52,23 @@
 | 考点 | 编码 | 题量 | 年份跨度 | 文件 |
 |---|---|---:|---|---|
 | 图形推理 | `PD-TX` | 799 | 2000–2026 | [PD-TX-图形推理.md](kaodian/PD-TX-图形推理.md) |
-| 定义判断 | `PD-DY` | 383 | 2004–2026 | [PD-DY-定义判断.md](kaodian/PD-DY-定义判断.md) |
+| 定义判断 | `PD-DY` | 441 | 2002–2026 | [PD-DY-定义判断.md](kaodian/PD-DY-定义判断.md) |
 | 类比推理 | `PD-LB` | 702 | 2006–2026 | [PD-LB-类比推理.md](kaodian/PD-LB-类比推理.md) |
-| 逻辑判断 | `PD-LJ` | 1074 | 2000–2026 | [PD-LJ-逻辑判断.md](kaodian/PD-LJ-逻辑判断.md) |
-| 科学推理 | `PD-KX` | 24 | 2004–2025 | [PD-KX-科学推理.md](kaodian/PD-KX-科学推理.md) |
-| 事件排序 | `PD-SJ` | 79 | 2000–2024 | [PD-SJ-事件排序.md](kaodian/PD-SJ-事件排序.md) |
+| 逻辑判断 | `PD-LJ` | 1030 | 2000–2026 | [PD-LJ-逻辑判断.md](kaodian/PD-LJ-逻辑判断.md) |
+| 科学推理 | `PD-KX` | 16 | 2004–2022 | [PD-KX-科学推理.md](kaodian/PD-KX-科学推理.md) |
+| 事件排序 | `PD-SJ` | 75 | 2000–2005 | [PD-SJ-事件排序.md](kaodian/PD-SJ-事件排序.md) |
 
 ### 常识判断
 
 | 考点 | 编码 | 题量 | 年份跨度 | 文件 |
 |---|---|---:|---|---|
-| 政治常识 | `CS-ZZ` | 1078 | 2000–2026 | [CS-ZZ-政治常识.md](kaodian/CS-ZZ-政治常识.md) |
+| 政治常识 | `CS-ZZ` | 1094 | 2000–2026 | [CS-ZZ-政治常识.md](kaodian/CS-ZZ-政治常识.md) |
 | 经济常识 | `CS-JJ` | 153 | 2000–2026 | [CS-JJ-经济常识.md](kaodian/CS-JJ-经济常识.md) |
 | 法律常识 | `CS-FL` | 223 | 2002–2026 | [CS-FL-法律常识.md](kaodian/CS-FL-法律常识.md) |
 | 历史人文 | `CS-LS` | 175 | 2000–2026 | [CS-LS-历史人文.md](kaodian/CS-LS-历史人文.md) |
 | 地理常识 | `CS-DL` | 93 | 2002–2026 | [CS-DL-地理常识.md](kaodian/CS-DL-地理常识.md) |
-| 科技常识 | `CS-KJ` | 112 | 2001–2026 | [CS-KJ-科技常识.md](kaodian/CS-KJ-科技常识.md) |
-| 时事政治 | `CS-SZ` | 56 | 2003–2026 | [CS-SZ-时事政治.md](kaodian/CS-SZ-时事政治.md) |
+| 科技常识 | `CS-KJ` | 123 | 2001–2026 | [CS-KJ-科技常识.md](kaodian/CS-KJ-科技常识.md) |
+| 时事政治 | `CS-SZ` | 27 | 2015–2026 | [CS-SZ-时事政治.md](kaodian/CS-SZ-时事政治.md) |
 | 生活常识 | `CS-SH` | 53 | 2006–2026 | [CS-SH-生活常识.md](kaodian/CS-SH-生活常识.md) |
 
 ### 申论

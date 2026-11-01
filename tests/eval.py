@@ -101,7 +101,8 @@ def pad(s, width):
 
 
 def load_jsonl(path):
-    with open(path, encoding="utf-8") as f:
+    # utf-8-sig：兼容 Windows 记事本/PowerShell 写出的 BOM 文件
+    with open(path, encoding="utf-8-sig") as f:
         return [json.loads(line) for line in f if line.strip()]
 
 

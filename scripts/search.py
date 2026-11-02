@@ -237,7 +237,11 @@ def fmt(rec, full=False, show_expl=True):
     if opts:
         line = "  " + "　".join(f"{k}. {v}" for k, v in opts.items())
         out.append(line)
-    img = os.path.join(BASE, "references", "images", rec["id"] + ".jpg")
+    img_dir = os.path.join(BASE, "references", "images")
+    mat = rec.get("mat_img")
+    if mat and os.path.exists(os.path.join(img_dir, mat)):
+        out.append(f"  材料图：references/images/{mat}")
+    img = os.path.join(img_dir, rec["id"] + ".jpg")
     if os.path.exists(img):
         out.append(f"  配图：references/images/{rec['id']}.jpg")
     if rec.get("dup_n", 1) > 1:

@@ -6,7 +6,11 @@
 - search.py 新增显示 说明：{dup_note}，同题变体的裁决可见。
 - 修回 2 条被误回滚的模块：GK-2004-b-X105、GD-2009-ty-X018 → 言语理解。
 - 变体元数据定案（以与题干匹配的 code 为准统一 code/sub/diff，module/type 不覆盖）：不一致组 **29 → 1**。
-- 同步 SKILL §3.1 立体子考点计数；stem_flag 现为 short 139、其余为 0。
+- 同步 SKILL §3.1 立体子考点计数（折纸盒 68/66、三视图 25/23、截面 24/21、立体拼合 62/62、PD-TX 843/826）；stem_flag 现为 short 139、其余为 0。
+- 变体元数据定案 28 组（70 处 code/sub/diff），剩 1 组 GD-2023-xz-X085（跨模块、无一致项，保留各自口径）。
+- 3 条占位题（原卷亦缺）标 stem_flag=short；GD-2025-ty-X025 首句按原卷补全、答案订正 A→C。
+- 重生成 data/stats.json、data/search-index.tsv、docs/kaodian-taxonomy.md、
+eferences/*。
 
 ## v1.7.1（原卷溯源后的收口）
 

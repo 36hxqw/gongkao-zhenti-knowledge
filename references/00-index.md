@@ -41,7 +41,7 @@
 
 | 考点 | 编码 | 题量 | 年份跨度 | 文件 |
 |---|---|---:|---|---|
-| 逻辑填空 | `YY-LJTK` | 1264 | 2001–2026 | [YY-LJTK-逻辑填空.md](kaodian/YY-LJTK-逻辑填空.md) |
+| 逻辑填空 | `YY-LJTK` | 1269 | 2001–2026 | [YY-LJTK-逻辑填空.md](kaodian/YY-LJTK-逻辑填空.md) |
 | 中心理解 | `YY-ZXJL` | 932 | 2000–2026 | [YY-ZXJL-中心理解.md](kaodian/YY-ZXJL-中心理解.md) |
 | 细节判断 | `YY-XJPD` | 64 | 2000–2026 | [YY-XJPD-细节判断.md](kaodian/YY-XJPD-细节判断.md) |
 | 标题填入 | `YY-BTTR` | 61 | 2003–2026 | [YY-BTTR-标题填入.md](kaodian/YY-BTTR-标题填入.md) |
@@ -54,9 +54,9 @@
 | 考点 | 编码 | 题量 | 年份跨度 | 文件 |
 |---|---|---:|---|---|
 | 图形推理 | `PD-TX` | 826 | 2000–2026 | [PD-TX-图形推理.md](kaodian/PD-TX-图形推理.md) |
-| 定义判断 | `PD-DY` | 442 | 2002–2026 | [PD-DY-定义判断.md](kaodian/PD-DY-定义判断.md) |
+| 定义判断 | `PD-DY` | 441 | 2002–2026 | [PD-DY-定义判断.md](kaodian/PD-DY-定义判断.md) |
 | 类比推理 | `PD-LB` | 696 | 2006–2026 | [PD-LB-类比推理.md](kaodian/PD-LB-类比推理.md) |
-| 逻辑判断 | `PD-LJ` | 1033 | 2000–2026 | [PD-LJ-逻辑判断.md](kaodian/PD-LJ-逻辑判断.md) |
+| 逻辑判断 | `PD-LJ` | 1043 | 2000–2026 | [PD-LJ-逻辑判断.md](kaodian/PD-LJ-逻辑判断.md) |
 | 科学推理 | `PD-KX` | 16 | 2004–2022 | [PD-KX-科学推理.md](kaodian/PD-KX-科学推理.md) |
 | 事件排序 | `PD-SJ` | 75 | 2000–2005 | [PD-SJ-事件排序.md](kaodian/PD-SJ-事件排序.md) |
 
@@ -64,14 +64,14 @@
 
 | 考点 | 编码 | 题量 | 年份跨度 | 文件 |
 |---|---|---:|---|---|
-| 政治常识 | `CS-ZZ` | 190 | 2002–2026 | [CS-ZZ-政治常识.md](kaodian/CS-ZZ-政治常识.md) |
+| 政治常识 | `CS-ZZ` | 189 | 2002–2026 | [CS-ZZ-政治常识.md](kaodian/CS-ZZ-政治常识.md) |
 | 经济常识 | `CS-JJ` | 140 | 2000–2026 | [CS-JJ-经济常识.md](kaodian/CS-JJ-经济常识.md) |
 | 法律常识 | `CS-FL` | 198 | 2002–2026 | [CS-FL-法律常识.md](kaodian/CS-FL-法律常识.md) |
 | 历史人文 | `CS-LS` | 213 | 2000–2026 | [CS-LS-历史人文.md](kaodian/CS-LS-历史人文.md) |
 | 地理常识 | `CS-DL` | 113 | 2001–2026 | [CS-DL-地理常识.md](kaodian/CS-DL-地理常识.md) |
-| 科技常识 | `CS-KJ` | 211 | 2000–2026 | [CS-KJ-科技常识.md](kaodian/CS-KJ-科技常识.md) |
+| 科技常识 | `CS-KJ` | 207 | 2000–2026 | [CS-KJ-科技常识.md](kaodian/CS-KJ-科技常识.md) |
 | 时事政治 | `CS-SZ` | 67 | 2002–2026 | [CS-SZ-时事政治.md](kaodian/CS-SZ-时事政治.md) |
-| 生活常识 | `CS-SH` | 815 | 2000–2026 | [CS-SH-生活常识.md](kaodian/CS-SH-生活常识.md) |
+| 生活常识 | `CS-SH` | 806 | 2000–2026 | [CS-SH-生活常识.md](kaodian/CS-SH-生活常识.md) |
 
 ### 申论
 

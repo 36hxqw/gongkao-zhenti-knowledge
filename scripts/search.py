@@ -344,6 +344,9 @@ def fmt(rec, full=False, show_expl=True):
     if rec.get("dup_n", 1) > 1:
         out.append(f"  （同题另有 {rec['dup_n'] - 1} 个变体，--all-variants 展开）")
     out.append(f"  【答案】{answer_text(rec)}")
+    note = (rec.get("dup_note") or "").strip()
+    if note:
+        out.append(f"  说明：{note}")
     if show_expl and rec.get("expl"):
         expl = rec["expl"] if full else rec["expl"][:220] + ("…" if len(rec["expl"]) > 220 else "")
         out.append(f"  【解析】{expl}")

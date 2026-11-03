@@ -15,19 +15,39 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable
 FAILED = []
 
+# 测试输出统一 UTF-8，避免 GBK 控制台无法编码 ✅/❌ 时半途崩掉
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError, OSError):
+        pass
+
 
 def run(*args, expect_ok=True):
     cmd = [PY, os.path.join(BASE, "scripts", "search.py"), *args]
-    p = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
+    child_env = os.environ.copy()
+    child_env["PYTHONIOENCODING"] = "utf-8"
+    p = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                       env=child_env)
     if expect_ok and p.returncode != 0:
         FAILED.append(f"命令失败: {' '.join(args)}\n{p.stderr[:300]}")
     return p
 
 
+def mark(ok):
+    """✅/❌ 在 GBK 终端不可编码时退化为 ASCII，保证测试在任何控制台都能跑完。"""
+    symbol = "✅" if ok else "❌"
+    try:
+        symbol.encode(sys.stdout.encoding or "utf-8")
+        return symbol
+    except (UnicodeEncodeError, LookupError):
+        return "[PASS]" if ok else "[FAIL]"
+
+
 def check(cond, msg):
     if not cond:
         FAILED.append(msg)
-    print(("  ✅ " if cond else "  ❌ ") + msg)
+    print(f"  {mark(bool(cond))} {msg}")
 
 
 def load_jsonl(name):
@@ -37,8 +57,10 @@ def load_jsonl(name):
 
 def main():
     print("[1] 数据自检")
+    child_env = os.environ.copy()
+    child_env["PYTHONIOENCODING"] = "utf-8"
     p = subprocess.run([PY, os.path.join(BASE, "scripts", "selfcheck.py")],
-                       capture_output=True, text=True, encoding="utf-8")
+                       capture_output=True, text=True, encoding="utf-8", env=child_env)
     check(p.returncode == 0, "selfcheck.py 通过")
     print(p.stdout.strip().splitlines()[-1] if p.stdout else "")
 
@@ -192,6 +214,99 @@ def main():
     check("申论命中" in out and "--xingce" in out, "默认检索申论占比高时提示 --xingce")
     out = run("--kw", "新质生产力", "--xingce", "--limit", "1").stdout
     check("申论命中" not in out, "--xingce 时不再提示申论占比")
+
+    print("[19] --year 多值（P1-5）")
+    x = load_jsonl("xingce.jsonl")
+    expected_hits = sum(1 for r in x
+                        if r["year"] in (2024, 2025) and "资料分析" in r["module"]
+                        and r["prov"] == "国考"
+                        and r.get("canonical", r["id"]) == r["id"])
+    p = run("--year", "2024", "2025", "--prov", "国考", "--module", "资料分析", "--limit", "6")
+    check(p.returncode == 0, "--year 2024 2025 正常退出（不再 argparse 报错）")
+    check(f"命中 {expected_hits} 题" in p.stdout, f"多值年份按 OR 命中 {expected_hits} 题")
+    check("Traceback" not in (p.stdout + p.stderr), "多值年份无裸 traceback")
+    p = run("--year", "2024", "--limit", "1")
+    check(p.returncode == 0 and "2024" in p.stdout, "--year 单值仍可用")
+    p = run("--year", "2024,2025", "--limit", "1")
+    check(p.returncode == 0 and "命中" in p.stdout, "--year 逗号写法可用")
+    p = run("--year", "20x4", expect_ok=False)
+    check(p.returncode == 2 and "Traceback" not in p.stderr and "--year" in p.stderr,
+          "非法年份给友好提示（退出码 2）")
+    p = run("--diff", "4-x", expect_ok=False)
+    check(p.returncode == 2 and "Traceback" not in p.stderr, "非法 --diff 给友好提示")
+
+    print("[20] 答案展示改用 ans_note（P1-1）")
+    x = load_jsonl("xingce.jsonl")
+    noted = next(r for r in x if not (r.get("ans") or "").strip() and r.get("ans_note"))
+    p = run("--id", noted["id"])
+    check(f"【答案】{noted['ans_note']}" in p.stdout,
+          f"空答案 + ans_note 显示说明文案（{noted['id']}）")
+    check("暂缺（原卷为扫描版）" not in p.stdout, "不再显示「暂缺（原卷为扫描版）」")
+    missing = next(r for r in x if not (r.get("ans") or "").strip() and not r.get("ans_note"))
+    p = run("--id", missing["id"])
+    check("【答案】该题答案缺失，见原卷" in p.stdout,
+          "空答案且无 ans_note 显示「该题答案缺失，见原卷」")
+    answered = next(r for r in x if (r.get("ans") or "").strip() and not r.get("ans_note"))
+    p = run("--id", answered["id"])
+    check(f"【答案】{answered['ans']}" in p.stdout, "有答案且无 ans_note 正常显示答案")
+    shen = load_jsonl("shenlun.jsonl")
+    snoted = next(r for r in shen if not (r.get("ans") or "").strip() and r.get("ans_note"))
+    p = run("--id", snoted["id"])
+    check(f"【答案】{snoted['ans_note']}" in p.stdout,
+          f"申论空答案显示 ans_note（{snoted['id']}）")
+
+    print("[21] --group-by 分组与截断提示（P2-1）")
+    pool = [r for r in x if "资料分析" in r["module"] and r["prov"] == "湖北"
+            and r.get("canonical", r["id"]) == r["id"]]
+    per_year = {}
+    for rec in pool:
+        per_year[rec["year"]] = per_year.get(rec["year"], 0) + 1
+    newest = max(per_year)
+    p = run("--module", "资料分析", "--prov", "湖北", "--limit", str(per_year[newest] + 1),
+            "--group-by", "年份")
+    check(p.returncode == 0, "--group-by 年份 正常退出")
+    heads = re.findall(r"── (\d{4}) 年（\d+ 题）──", p.stdout)
+    check(len(heads) >= 2, f"年份分组标题出现（{heads}）")
+    check(heads == sorted(heads, reverse=True), "年份分组按年份倒序")
+    p = run("--module", "资料分析", "--limit", "10", "--group-by", "考点")
+    codes = re.findall(r"── ([A-Z]{2}-[A-Z]+) [^（]*（\d+ 题）──", p.stdout)
+    check(len(codes) >= 2 and codes == sorted(codes), f"考点分组标题出现且按考点排序（{codes}）")
+    p = run("--module", "资料分析", "--limit", "10", "--group-by", "省份")
+    check("── 国考（" in p.stdout or "── 广东（" in p.stdout, "省份分组标题出现")
+    p = run("--module", "资料分析", "--limit", "10", "--group-by", "年份+考点")
+    check(re.search(r"── \d{4} 年 · [A-Z]{2}-[A-Z]+（\d+ 题）──", p.stdout) is not None,
+          "年份+考点分组标题出现")
+    p = run("--module", "资料分析", "--limit", "3")
+    check("（已截断：命中" in p.stdout and "显示前 3 条；用 --limit 调整）" in p.stdout,
+          "文本模式截断提示出现")
+    p = run("--module", "资料分析", "--limit", "3", "--json")
+    check("已截断" in p.stderr, "JSON 模式截断提示写 stderr")
+    try:
+        parsed = json.loads(p.stdout)
+        ok_json = isinstance(parsed, list) and len(parsed) == 3
+    except json.JSONDecodeError:
+        ok_json = False
+    check(ok_json, "JSON 截断后 stdout 仍为 3 元素数组")
+
+    print("[22] stem_flag 警示（P1-3）")
+    sys.path.insert(0, os.path.join(BASE, "scripts"))
+    import search as search_mod
+    base_rec = {"id": "GK-2024-ty-X001", "year": 2024, "prov": "国考", "vol": "统一卷",
+                "num": 1, "module": "资料分析", "type": "基期量计算", "code": "ZL-BASE",
+                "stem": "某年某指标为多少", "ans": "A", "opts": {"A": "1", "B": "2"}}
+    reasons = {"short": "题干过短", "contaminated": "含邻题残句",
+               "watermark": "含广告水印", "missing_opts": "选项残缺"}
+    all_ok = True
+    for flag, reason in reasons.items():
+        line = search_mod.fmt(dict(base_rec, stem_flag=flag))
+        all_ok = all_ok and f"⚠ 题干可能不完整（{reason}）" in line
+    check(all_ok, "四种 stem_flag 都映射成中文原因并显示警示行")
+    check("⚠" not in search_mod.fmt(dict(base_rec, stem_flag=None)),
+          "stem_flag 为空时不显示警示")
+    check(search_mod.answer_text(dict(base_rec, ans="", ans_note=None)) == "该题答案缺失，见原卷",
+          "无答案且无 ans_note 的统一文案")
+    check(search_mod.answer_text(dict(base_rec, ans="", ans_note="见原卷")) == "见原卷",
+          "ans_note 原样输出")
 
     print()
     if FAILED:

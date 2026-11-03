@@ -17,6 +17,13 @@
     # 年份 + 模块 + 只要题干摘要
     python scripts/search.py --year 2024 --module 判断推理
 
+    # 多值筛选（年份/模块/省份都支持空格分隔或逗号分隔）
+    python scripts/search.py --year 2024 2025 --module 资料分析 --limit 3
+    python scripts/search.py --year 2024,2025 --prov 国考 广东
+
+    # 分组展示（组内按考点排序）
+    python scripts/search.py --module 资料分析 --group-by 年份 --limit 10
+
     # 按 ID 取完整题目（含解析；同题变体的 id 也可直接查）
     python scripts/search.py --id GD-2023-xj-X056 --full
 
@@ -111,6 +118,82 @@ PROV_ALIAS = {
 # 题号形如 GD-2023-xj-X056 / GK-2025-fs-X010（年份+省份+卷别+题号，便于失配时给最近 id）
 ID_RE = re.compile(r"^([A-Za-z]{2,4})-(\d{4})-([A-Za-z0-9]+)-([A-Za-z]+)(\d+)$")
 PROV_CODE = {"GK": "国考", "GD": "广东", "HB": "湖北"}
+PROV_ORDER = {"国考": 0, "广东": 1, "湖北": 2}
+
+# stem_flag 原值 -> 展示给用户的「原因」
+STEM_FLAG_REASON = {
+    "short": "题干过短",
+    "contaminated": "含邻题残句",
+    "watermark": "含广告水印",
+    "missing_opts": "选项残缺",
+}
+
+# 完全无答案且无 ans_note 时的统一文案（不再写「扫描版」）
+NO_ANSWER_TEXT = "该题答案缺失，见原卷"
+
+GROUP_BY_CHOICES = ("年份", "考点", "省份", "年份+考点")
+
+
+class _Parser(argparse.ArgumentParser):
+    """argparse 默认报错只有 usage + 一行英文；这里补一句中文用法示例，避免裸 traceback。"""
+
+    def error(self, message):
+        self.print_usage(sys.stderr)
+        print(f"参数有误：{message}\n"
+              f"示例：python scripts/search.py --year 2024 2025 --module 资料分析 --limit 3\n"
+              f"      python scripts/search.py --kw 比重 --kw 同比 --group-by 年份",
+              file=sys.stderr)
+        raise SystemExit(2)
+
+
+def _soft_stdio():
+    """非 UTF-8 控制台（如 GBK）无法编码 ⚠ 等符号时用 ? 兜底，避免直接崩掉。"""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if "utf" not in (stream.encoding or "").lower():
+                stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
+def split_terms(values):
+    """展平可多值的参数：支持空格（nargs）+ 逗号/顿号/加号分隔。"""
+    out = []
+    for raw in values or []:
+        for tok in re.split(r"[,，、+/]+", str(raw)):
+            tok = tok.strip()
+            if tok and tok not in out:
+                out.append(tok)
+    return out
+
+
+def parse_year_values(values):
+    """--year 的取值解析：支持 2024 / 2024,2025 / 2024 2025 / 2023-2025。"""
+    years = []
+    for raw in values or []:
+        for tok in re.split(r"[,，、/\s]+", str(raw).strip()):
+            if not tok:
+                continue
+            m = re.fullmatch(r"(\d{4})\s*[-~—–至]\s*(\d{4})", tok)
+            if m:
+                lo, hi = sorted((int(m.group(1)), int(m.group(2))))
+                years.extend(range(lo, hi + 1))
+            elif re.fullmatch(r"\d{4}", tok):
+                years.append(int(tok))
+            else:
+                raise ValueError(tok)
+    return sorted(set(years))
+
+
+def answer_text(rec):
+    """答案展示口径：有 ans 用 ans；ans 空但有 ans_note 用说明；两者都没有用统一缺失文案。"""
+    ans = (rec.get("ans") or "").strip()
+    if ans:
+        return ans
+    note = (rec.get("ans_note") or "").strip()
+    if note:
+        return note
+    return NO_ANSWER_TEXT
 
 
 def _read_jsonl(name):
@@ -244,6 +327,9 @@ def fmt(rec, full=False, show_expl=True):
         ctx = rec["ctx"] if full else rec["ctx"][:160] + ("…" if len(rec["ctx"]) > 160 else "")
         out.append(f"  材料：{ctx}")
     out.append(f"  题干：{rec['stem']}")
+    flag = (rec.get("stem_flag") or "").strip()
+    if flag:
+        out.append(f"  ⚠ 题干可能不完整（{STEM_FLAG_REASON.get(flag, flag)}）")
     opts = rec.get("opts") or {}
     if opts:
         line = "  " + "　".join(f"{k}. {v}" for k, v in opts.items())
@@ -257,7 +343,7 @@ def fmt(rec, full=False, show_expl=True):
         out.append(f"  配图：references/images/{rec['id']}.jpg")
     if rec.get("dup_n", 1) > 1:
         out.append(f"  （同题另有 {rec['dup_n'] - 1} 个变体，--all-variants 展开）")
-    out.append(f"  【答案】{rec.get('ans') or '暂缺（原卷为扫描版）'}")
+    out.append(f"  【答案】{answer_text(rec)}")
     if show_expl and rec.get("expl"):
         expl = rec["expl"] if full else rec["expl"][:220] + ("…" if len(rec["expl"]) > 220 else "")
         out.append(f"  【解析】{expl}")
@@ -298,6 +384,43 @@ def _rec_num(rec):
         return int(n)
     except (TypeError, ValueError):
         return 0
+
+
+def _group_sort_key(rec):
+    """组内排序：考点 → 省份 → 年份新 → 题号。"""
+    return (rec.get("code") or "", PROV_ORDER.get(rec.get("prov"), 9),
+            -(rec.get("year") or 0), _rec_num(rec), rec["id"])
+
+
+def group_hits(sel, mode):
+    """按 --group-by 维度分组，返回 [(组标题, 组内记录)]；组按维度排序，组内按考点排序。"""
+    if not mode:
+        return []
+
+    def group_of(rec):
+        year = rec.get("year") or 0
+        prov = rec.get("prov") or "未知省份"
+        code = rec.get("code") or "未知考点"
+        if mode == "年份":
+            return ((-year,), f"{year or '未知'} 年")
+        if mode == "省份":
+            return ((PROV_ORDER.get(prov, 9), prov), prov)
+        if mode == "考点":
+            title = code + (f" {rec['type']}" if rec.get("type") else "")
+            return ((code,), title)
+        # 年份+考点
+        return ((-year, code), f"{year or '未知'} 年 · {code}")
+
+    buckets = {}
+    for rec in sel:
+        key, title = group_of(rec)
+        bucket = buckets.setdefault(key, {"title": title, "items": []})
+        bucket["items"].append(rec)
+    out = []
+    for key in sorted(buckets):
+        bucket = buckets[key]
+        out.append((bucket["title"], sorted(bucket["items"], key=_group_sort_key)))
+    return out
 
 
 def _nearest_ids(qid, recs, n=3):
@@ -411,25 +534,29 @@ def _print_no_hit(args):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="公考真题知识库检索")
+    ap = _Parser(description="公考真题知识库检索")
     ap.add_argument("--kw", action="append", default=[],
                     help="关键词，可多次；多个为 AND（0 命中自动降级为 2 个词）")
     ap.add_argument("--any", nargs="*", default=[], help="任一词命中（OR）")
     ap.add_argument("--fuzzy", action="store_true", help="模糊匹配：同义词 + 2-gram 相似（容忍换说法/错字）")
     ap.add_argument("--kaodian", "--code", dest="kaodian", action="append", default=[],
                     help="考点编码或考点名（如 ZL-BASE / 基期量计算）")
-    ap.add_argument("--module", help="模块：资料分析/数量关系/言语理解/判断推理/常识判断/申论")
+    ap.add_argument("--module", nargs="+", metavar="模块", help="模块：资料分析/数量关系/言语理解/判断推理/常识判断/申论"
+                    "（可多个：--module 资料分析 判断推理）")
     ap.add_argument("--type", dest="type_", help="题型名，如 图形推理")
     ap.add_argument("--sub", help="子考点名（三级），如 两期比重差 / 翻译推理 / 最不利构造")
     ap.add_argument("--diff", dest="diff", help="难度：4 或 4-5 或 1,2（1 易 – 5 难）")
     ap.add_argument("--theme", help="申论主题，如 基层治理 / 乡村振兴 / 科技创新")
-    ap.add_argument("--year", type=int, action="append", default=[], help="年份，可多次（OR）")
+    ap.add_argument("--year", nargs="+", metavar="年份", default=[],
+                    help="年份，可多个（OR）：--year 2024 2025 / --year 2024,2025 / --year 2023-2025")
     ap.add_argument("--from-year", type=int, help="起始年份")
     ap.add_argument("--to-year", type=int, help="结束年份")
-    ap.add_argument("--prov", help="国考/广东/湖北")
+    ap.add_argument("--prov", nargs="+", metavar="省份", default=[], help="国考/广东/湖北，可多个（OR）")
     ap.add_argument("--vol", help="卷别：副省级/地市级/行政执法/县级/乡镇/统一卷…")
     ap.add_argument("--id", dest="qid", help="按 ID 精确取题（同题变体 id 也直接命中，不折叠）")
     ap.add_argument("--limit", type=int, default=5, help="返回条数，默认 5")
+    ap.add_argument("--group-by", dest="group_by", choices=GROUP_BY_CHOICES, metavar="维度",
+                    help="分组展示：年份/考点/省份/年份+考点（组内按考点排序）")
     ap.add_argument("--full", action="store_true", help="输出完整题干与解析")
     ap.add_argument("--json", action="store_true", help="输出 JSON")
     ap.add_argument("--shenlun", action="store_true", help="只检索申论")
@@ -437,6 +564,15 @@ def main(argv=None):
     ap.add_argument("--list-kaodian", action="store_true", help="列出全部考点及题量")
     ap.add_argument("--all-variants", action="store_true", help="展开同题变体（默认折叠，只出主记录）")
     args = ap.parse_args(argv)
+    _soft_stdio()
+
+    try:
+        years = parse_year_values(args.year)
+    except ValueError as exc:
+        print(f"--year 格式不对：「{exc}」\n"
+              f"正确写法：--year 2024 2025 / --year 2024,2025 / --year 2023-2025。",
+              file=sys.stderr)
+        return 2
 
     xingce = [] if args.shenlun else _read_jsonl("xingce.jsonl")
     shenlun = [] if args.xingce else _read_jsonl("shenlun.jsonl")
@@ -454,32 +590,42 @@ def main(argv=None):
         return query_by_id(args, recs)
 
     sel = recs
-    if args.prov:
-        p = PROV_ALIAS.get(args.prov, args.prov)
-        sel = [r for r in sel if r["prov"] == p]
+    provs = []
+    for p in split_terms(args.prov):
+        std = PROV_ALIAS.get(p) or PROV_ALIAS.get(p.lower()) or p
+        if std not in provs:
+            provs.append(std)
+    mods = split_terms(args.module)
+    if provs:
+        sel = [r for r in sel if r["prov"] in provs]
     if args.vol:
         sel = [r for r in sel if args.vol in r["vol"]]
-    if args.year:
-        sel = [r for r in sel if r["year"] in args.year]
+    if years:
+        sel = [r for r in sel if r["year"] in years]
     if args.from_year:
         sel = [r for r in sel if r["year"] and r["year"] >= args.from_year]
     if args.to_year:
         sel = [r for r in sel if r["year"] and r["year"] <= args.to_year]
-    if args.module:
-        sel = [r for r in sel if args.module in r["module"]]
+    if mods:
+        sel = [r for r in sel if any(m in (r.get("module") or "") for m in mods)]
     if args.type_:
         sel = [r for r in sel if args.type_ in r["type"]]
     if args.sub:
         sel = [r for r in sel if args.sub in (r.get("sub") or "")]
     if args.diff:
         want = set()
-        for part in str(args.diff).split(","):
-            part = part.strip()
-            if "-" in part:
-                a, b = part.split("-", 1)
-                want.update(range(int(a), int(b) + 1))
-            elif part:
-                want.add(int(part))
+        try:
+            for part in str(args.diff).split(","):
+                part = part.strip()
+                if "-" in part:
+                    a, b = part.split("-", 1)
+                    want.update(range(int(a), int(b) + 1))
+                elif part:
+                    want.add(int(part))
+        except ValueError:
+            print(f"--diff 格式不对：「{args.diff}」\n"
+                  f"正确写法：--diff 4 / --diff 4-5 / --diff 1,2（1 易 – 5 难）。", file=sys.stderr)
+            return 2
         sel = [r for r in sel if r.get("diff") in want]
     if args.theme:
         sel = [r for r in sel if any(args.theme in t for t in (r.get("theme") or []))]
@@ -510,6 +656,11 @@ def main(argv=None):
                             _rec_num(r), r["id"]))
 
     if args.json:
+        if args.group_by:
+            print("（JSON 输出为扁平数组，--group-by 仅作用于文本输出）", file=sys.stderr)
+        if len(sel) > args.limit:
+            print(f"（已截断：命中 {len(sel)} 条，显示前 {args.limit} 条；用 --limit 调整）",
+                  file=sys.stderr)
         print(json.dumps(sel[: args.limit], ensure_ascii=False, indent=1))
         if dropped:
             print(_downgrade_msg(dropped, len(args.kw)), file=sys.stderr)
@@ -524,7 +675,10 @@ def main(argv=None):
 
     if dropped:
         print(_downgrade_msg(dropped, len(args.kw)))
-    print(f"命中 {len(sel)} 题，显示前 {min(args.limit, len(sel))} 题：\n")
+    shown = sel[: args.limit]
+    print(f"命中 {len(sel)} 题，显示前 {len(shown)} 题：\n")
+    if len(sel) > len(shown):
+        print(f"（已截断：命中 {len(sel)} 条，显示前 {len(shown)} 条；用 --limit 调整）\n")
 
     # 检索范围提示：默认（行测+申论）下申论占比过高时点明
     if not (args.xingce or args.shenlun):
@@ -532,9 +686,16 @@ def main(argv=None):
         if n_shen and n_shen / len(sel) > 0.30:
             print(f"申论命中 {n_shen} 条（材料重复度高），可用 --xingce 只看行测\n")
 
-    for r in sel[: args.limit]:
-        print(fmt(r, full=args.full))
-        print("-" * 72)
+    if args.group_by:
+        for title, items in group_hits(shown, args.group_by):
+            print(f"── {title}（{len(items)} 题）──")
+            for r in items:
+                print(fmt(r, full=args.full))
+                print("-" * 72)
+    else:
+        for r in shown:
+            print(fmt(r, full=args.full))
+            print("-" * 72)
     if n_variants:
         print(f"另有 {n_variants} 条同题变体，加 --all-variants 查看（默认已折叠）")
     return 0

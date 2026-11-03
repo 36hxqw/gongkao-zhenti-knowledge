@@ -104,7 +104,7 @@ def main():
     # 答案覆盖率（仅供参考，不算失败）
     no_ans = sum(1 for r in x if not r["ans"])
     print(f"行测 {len(x)} 题 / 申论 {len(s)} 题 / 考点文件 {len(files)} 个")
-    print(f"答案缺失 {no_ans} 题（{no_ans / len(x) * 100:.1f}%，均为扫描版原卷，见 docs/coverage.md）")
+    print(f"答案缺失 {no_ans} 题（{no_ans / len(x) * 100:.1f}%，原因见各题 ans_note 与 docs/coverage.md）")
 
     if problems:
         print(f"\n发现 {len(problems)} 个问题：")

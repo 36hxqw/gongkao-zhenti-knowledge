@@ -27,15 +27,21 @@
    - 题干含「本试卷由 / 粉笔 / 上岸 / 微信公众号 / 扫码 / 关注我们 / QQ群」等水印广告的题；
    - 题干混入选项碎片（如「） A.」「上 B.」）的题；
    - 题干清洗后不足 8 字的题；
-   - ans 为空的题（保留开关 --allow-no-answer，只放开这一项）。
+   - ans 为空的题（开关 --allow-no-answer，只放开这一项）；
+   - 数据层标记 stem_flag 的题（short/contaminated/watermark/missing_opts，
+     开关 --allow-flagged，只放开这一项）。
+   成卷说明里会列出被排除的 id 数。
 3. 年份配额：单一年份不超过请求题量的 --max-per-year-ratio（默认 0.4）。
    抽样先按考点轮转（考点尽量分散），考点内取「当前已选最少」的年份、同条件取近年，
    年份自然摊平后再用配额做硬约束；配额卡住、凑不满时才从其他年份补，并在试卷里如实提示。
    想集中练近年真题时，用 --min-year / --years 收窄范围即可。
 4. 模块配额：--quota 模块=数量（可多次），给定时以配额为准、--count 仅作上限；
-   配额之和超过 --count 时按比例压缩。
-5. 配图：图形题（fig / 图形推理）与资料分析题若存在 references/images/<id>.jpg，则标注该相对路径。
-6. 输出：Markdown（标题 + 试题 + 答案与考点页）或 JSON 数组（题库完整字段 + image）；
+   未显式给 --count 时目标题量默认取配额之和（如 5+10+10=25，不会被压成 4+8+8）；
+   配额之和超过显式 --count 时才按比例压缩并打印 ⚠ 提示；配额凑不满时打印
+   ⚠ 配额不足：<模块> 缺 N 题（已缩减），不静默压缩。
+5. 随机种子：未给 --seed 时固定用 20260101，保证 --dry-run 与成卷、两次运行结果一致。
+6. 配图：图形题（fig / 图形推理）与资料分析题若存在 references/images/<id>.jpg，则标注该相对路径。
+7. 输出：Markdown（标题 + 试题 + 答案与考点页）或 JSON 数组（题库完整字段 + image）；
    --dry-run 只打印选题清单，不写文件。
 
 退出码：0 成功（含可用题量不足）；2 无结果或参数错误。
@@ -94,6 +100,19 @@ DIRTY_STEM_RE = re.compile(r"本试卷由|粉笔|上岸|微信公众号|扫码|�
 # 选项碎片混入题干：如「） A.下降了20%以」「上 B.下降了不到20%」
 STEM_FRAGMENT_RE = re.compile(r"[）)]\s*A[.、．]|\.\s*上\s*[A-D][.、．]")
 MIN_STEM_LEN = 8
+
+# 默认随机种子：未显式给 --seed 时固定，保证 --dry-run 与成卷、两次运行结果一致
+DEFAULT_SEED = 20260101
+
+
+def _soft_stdio():
+    """非 UTF-8 控制台（如 GBK）无法编码 ⚠ 等符号时用 ? 兜底，避免直接崩掉。"""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            if "utf" not in (stream.encoding or "").lower():
+                stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
 
 
 def read_jsonl(name):
@@ -385,11 +404,13 @@ def cell(text):
     return one_line(text).replace("|", "／")
 
 
-def quality_issues(rec, allow_dirty=False, allow_no_answer=False):
+def quality_issues(rec, allow_dirty=False, allow_no_answer=False, allow_flagged=False):
     """返回该题命中的「质量原因」列表；空列表表示可入卷。
 
-    默认排除：题干广告/水印词、选项碎片混入题干、题干过短（< 8 字）、无答案。
-    --allow-dirty 关闭质量过滤（同时放开无答案）；--allow-no-answer 只放开无答案。
+    默认排除：题干广告/水印词、选项碎片混入题干、题干过短（< 8 字）、无答案、
+    以及数据层标记了 stem_flag 的题（题干可能不完整）。
+    --allow-dirty 关闭质量过滤（同时放开无答案与题干异常）；
+    --allow-no-answer 只放开无答案，--allow-flagged 只放开题干异常。
     """
     issues = []
     if not allow_dirty:
@@ -400,6 +421,9 @@ def quality_issues(rec, allow_dirty=False, allow_no_answer=False):
             issues.append("选项碎片")
         if len(stem) < MIN_STEM_LEN:
             issues.append("题干过短")
+        flag = (rec.get("stem_flag") or "").strip()
+        if flag and not allow_flagged:
+            issues.append("题干异常")
     if not (allow_dirty or allow_no_answer) and not (rec.get("ans") or "").strip():
         issues.append("无答案")
     return issues
@@ -411,10 +435,15 @@ def describe_drop(drop):
         return "未排除（候选题均通过质量检查）"
     issues = drop.get("issues") or {}
     parts = [f"{k} {v}" for k, v in sorted(issues.items(), key=lambda kv: (-kv[1], kv[0]))]
-    text = f"排除 {drop['total']} 题" + (f"（{'、'.join(parts)}）" if parts else "")
+    text = f"排除 {drop['total']} 个 id" + (f"（{'、'.join(parts)}）" if parts else "")
     if sum(issues.values()) > drop["total"]:
         text += "，单题可命中多项"
     return text
+
+
+def quota_short_text(mod, got, want):
+    """配额不足的告警文案（--quota 凑不满时不再静默压缩）。"""
+    return f"⚠ 配额不足：{mod} 缺 {max(0, want - got)} 题（已缩减）"
 
 
 def _width(text):
@@ -480,7 +509,7 @@ def render_answers(picked):
     return out
 
 
-def render_md(picked, total_avail, filters_desc, seed, plan):
+def render_md(picked, total_avail, filters_desc, seed, plan, seed_given=True):
     """渲染 Markdown 试卷；plan 提供目标题量、年份配额、过滤与配额统计。"""
     mods = []
     for r in picked:
@@ -508,12 +537,15 @@ def render_md(picked, total_avail, filters_desc, seed, plan):
     if plan.get("quota"):
         quota_txt = "、".join(f"{m} {n} 题" for m, n in plan["quota"].items())
         lines.append(f"- **模块配额**：{quota_txt}（--count 仅作上限）")
+        if plan.get("quota_compressed"):
+            lines.append(f"- **⚠ 配额压缩**：--count {plan['quota_cap']} 小于配额之和 "
+                         f"{plan['quota_sum']}，已按比例压缩")
     lines.append(f"- **质量过滤**：{plan.get('filter_desc') or '开启'}")
     lines.append(f"- **建议用时**：{time_text(picked)}")
-    if seed is None:
-        lines.append("- **随机种子**：未指定（本次随机，--seed N 可复现）")
-    else:
+    if seed_given:
         lines.append(f"- **随机种子**：{seed}（同一 seed + 同一题库可复现）")
+    else:
+        lines.append(f"- **随机种子**：{seed}（默认固定；同一参数两次结果一致，--seed N 可改）")
     dist = Counter(r["code"] for r in picked)
     if dist:
         parts = [f"{code} {n}" for code, n in sorted(dist.items(), key=lambda kv: (-kv[1], kv[0]))]
@@ -527,7 +559,8 @@ def render_md(picked, total_avail, filters_desc, seed, plan):
         lines.append(f"- **提示**：年份配额不足以凑满，已从其他年份补 {plan['relaxed']} 题"
                      f"（{years_txt}）；如需严格限年可减少 --count 或放宽 --years。")
     for mod, got, want in plan.get("quota_short") or []:
-        lines.append(f"- **提示**：{mod} 配额 {want} 题，可用只有 {got} 题，"
+        lines.append(f"- **提示**：{quota_short_text(mod, got, want)}；"
+                     f"可用 {got} 题 / 配额 {want} 题，"
                      f"可放宽 --years/--prov 或去掉 --type。")
     lines.append("")
     lines.append("---")
@@ -567,12 +600,15 @@ def print_dry_run(picked, plan, filters_desc):
         print("年份分布：" + "、".join(f"{y} 年 {years[y]} 题" for y in sorted(years, reverse=True)))
     if plan.get("quota"):
         print("模块配额：" + "、".join(f"{m} {plan['quota'][m]} 题" for m in plan["quota"]))
+    if plan.get("quota_compressed"):
+        print(f"⚠ 配额压缩：--count {plan['quota_cap']} 小于配额之和 "
+              f"{plan['quota_sum']}，已按比例压缩")
     print("质量过滤：" + (plan.get("filter_desc") or "开启"))
     print(f"建议用时：{time_text(picked)}")
     if plan.get("relaxed"):
         print(f"注意：年份配额不足以凑满，补入 {plan['relaxed']} 题")
     for mod, got, want in plan.get("quota_short") or []:
-        print(f"注意：{mod} 配额 {want} 题，可用只有 {got} 题")
+        print(quota_short_text(mod, got, want))
 
 
 def main(argv=None):
@@ -591,19 +627,23 @@ def main(argv=None):
     ap.add_argument("--prov", help="省份：国考/广东/湖北")
     ap.add_argument("--years", help="年份或区间：2024 或 2019-2026（也支持 2019,2021,2024）")
     ap.add_argument("--min-year", type=int, help="只取不早于该年的题，如 --min-year 2022")
-    ap.add_argument("--count", type=int, default=20, help="题量，默认 20；给 --quota 时仅作上限")
+    ap.add_argument("--count", type=int, default=None,
+                    help="题量；缺省时有 --quota 取配额之和（25），否则 20；给定 --quota 时仅作上限")
     ap.add_argument("--quota", action="append", default=[], metavar="模块=数量",
                     help="模块配额，可多次，如 --quota 资料分析=10 --quota 判断推理=10")
     ap.add_argument("--max-per-year-ratio", type=float, default=0.4, dest="max_per_year_ratio",
                     metavar="R",
                     help="单一年份最多占请求题量的比例，默认 0.4；<=0 或 >=1 表示不限制")
     ap.add_argument("--allow-dirty", dest="allow_dirty", action="store_true",
-                    help="关闭质量过滤（水印/广告、选项碎片、题干过短、无答案）")
+                    help="关闭质量过滤（水印/广告、选项碎片、题干过短、无答案、题干异常）")
     ap.add_argument("--allow-no-answer", dest="allow_no_answer", action="store_true",
                     help="只放开「无答案」这一项质量过滤，其余仍生效")
+    ap.add_argument("--allow-flagged", dest="allow_flagged", action="store_true",
+                    help="只放开「题干异常」这一项质量过滤（stem_flag 非空），其余仍生效")
     ap.add_argument("--dry-run", dest="dry_run", action="store_true",
                     help="只打印选题清单（id/年份/模块/题型），不写文件")
-    ap.add_argument("--seed", type=int, help="随机种子；同一 seed + 同一题库可复现同一套卷")
+    ap.add_argument("--seed", type=int,
+                    help=f"随机种子，默认 {DEFAULT_SEED}（固定默认保证可复现）")
     ap.add_argument("--with-answers", dest="with_answers", action="store_true", default=True,
                     help="附带「答案与考点」页（默认开启）")
     ap.add_argument("--no-answers", dest="with_answers", action="store_false",
@@ -615,15 +655,19 @@ def main(argv=None):
                     help="只取 canonical==id 的主记录（默认开启；--no-exclude-dup 展开同题变体）")
     ap.add_argument("--shenlun", action="store_true", help="申论组卷（接口预留，本轮暂不支持）")
     args = ap.parse_args(argv)
+    _soft_stdio()
 
     if args.shenlun:
         print("暂不支持：paper.py 本轮只组行测卷。\n"
               "申论请用 python scripts/search.py --shenlun --kw 概括 --limit 5 逐题检索，"
               "或先用 python scripts/wrongbook.py add 记录申论错题。", file=sys.stderr)
         return 2
-    if args.count <= 0:
+    if args.count is not None and args.count <= 0:
         print("--count 必须为正整数，例如 --count 20。", file=sys.stderr)
         return 2
+
+    seed_given = args.seed is not None
+    seed = args.seed if seed_given else DEFAULT_SEED
 
     mods = split_modules(args.module)
     exclude_types = split_words(args.exclude_type)
@@ -677,7 +721,8 @@ def main(argv=None):
     if sel:
         clean = []
         for rec in sel:
-            issues = quality_issues(rec, args.allow_dirty, args.allow_no_answer)
+            issues = quality_issues(rec, args.allow_dirty, args.allow_no_answer,
+                                    args.allow_flagged)
             if issues:
                 dropped["total"] += 1
                 dropped["issues"].update(issues)
@@ -699,22 +744,29 @@ def main(argv=None):
                   "  ⑤ 展开同题变体：加 --no-exclude-dup", file=sys.stderr)
         return 2
 
-    # 目标题量：有配额时以配额之和为准（--count 仅作上限）
+    # 目标题量：有配额时以配额之和为准（--count 仅作上限）；未给 --count 时不再压到默认 20
     module_quota = None
-    target = args.count
+    quota_sum = 0
+    quota_cap = None
+    quota_compressed = False
     if quotas:
-        module_quota = fit_quotas(quotas, args.count)
+        quota_sum = sum(n for _, n in quotas)
+        quota_cap = args.count if args.count is not None else quota_sum
+        module_quota = fit_quotas(quotas, quota_cap)
         target = sum(module_quota.values())
+        quota_compressed = quota_cap < quota_sum
         if target <= 0:
             print("配额之和为 0，无法组卷；请检查 --quota。", file=sys.stderr)
             return 2
+    else:
+        target = args.count if args.count is not None else 20
 
     ratio = args.max_per_year_ratio
     max_per_year = None
     if ratio is not None and 0 < ratio < 1:
         max_per_year = max(1, int(math.floor(ratio * target + 1e-9)))
 
-    picked, notes = pick_questions(sel, target, args.seed, max_per_year, module_quota)
+    picked, notes = pick_questions(sel, target, seed, max_per_year, module_quota)
     if not picked:
         print("按当前条件没有可入卷的题（可能是 --quota 的模块不在筛选结果里）。\n"
               "建议：检查 --quota 模块名是否与 --module/--prov/--years 冲突。", file=sys.stderr)
@@ -743,16 +795,21 @@ def main(argv=None):
 
     if args.allow_dirty:
         filter_desc = "已关闭（--allow-dirty）"
-    elif args.allow_no_answer:
-        filter_desc = describe_drop(dropped) + "；无答案题已放开（--allow-no-answer）"
     else:
         filter_desc = describe_drop(dropped)
+        if args.allow_no_answer:
+            filter_desc += "；无答案题已放开（--allow-no-answer）"
+        if args.allow_flagged:
+            filter_desc += "；题干异常题已放开（--allow-flagged）"
 
     plan = {
         "target": target,
         "year_cap": max_per_year,
         "ratio": ratio,
         "quota": module_quota,
+        "quota_cap": quota_cap,
+        "quota_sum": quota_sum,
+        "quota_compressed": quota_compressed,
         "drop": None if args.allow_dirty else dropped,
         "filter_desc": filter_desc,
         "relaxed": notes["relaxed"],
@@ -779,7 +836,7 @@ def main(argv=None):
         else:
             print(payload)
     else:
-        md = render_md(picked, len(sel), filters_desc, args.seed, plan)
+        md = render_md(picked, len(sel), filters_desc, seed, plan, seed_given=seed_given)
         if not args.with_answers:
             cut = md.find("## 二、答案与考点")
             if cut > 0:
@@ -801,10 +858,13 @@ def main(argv=None):
 
     if dropped["total"] and not args.allow_dirty:
         print(f"质量过滤：{describe_drop(dropped)}（--allow-dirty 可关闭）", file=sys.stderr)
+    if quota_compressed:
+        print(f"⚠ 配额压缩：--count {quota_cap} 小于配额之和 {quota_sum}，已按比例压缩。",
+              file=sys.stderr)
     if notes["relaxed"]:
         print(f"注意：年份配额不足以凑满，已从其他年份补 {notes['relaxed']} 题。", file=sys.stderr)
     for mod, got, want in notes["quota_short"]:
-        print(f"注意：{mod} 配额 {want} 题，可用只有 {got} 题。", file=sys.stderr)
+        print(quota_short_text(mod, got, want), file=sys.stderr)
     if len(picked) < target:
         print(f"注意：可用 {len(picked)} 题（少于请求的 {target} 题），已按实际题量出卷，未重复凑数。",
               file=sys.stderr)

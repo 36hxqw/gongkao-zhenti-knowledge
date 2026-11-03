@@ -34,6 +34,13 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable
 FAILED = []
 
+# 测试输出统一 UTF-8，避免 GBK 控制台无法编码 ✅/❌ 时半途崩掉
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError, OSError):
+        pass
+
 Q_NUM = re.compile(r"^### (\d+)\. ", re.M)
 ANS_ROW = re.compile(
     r"^\| (\d+) \| ([A-D—]) \| ([^|]+?) \| ([A-Z]{2}-[A-Z]+) \| `([^`]+)` \|", re.M)
@@ -110,9 +117,10 @@ def one_line(text):
 
 
 def is_clean(rec):
-    """默认质量过滤下可入卷：题干够长、不含水印与选项碎片、有答案。"""
+    """默认质量过滤下可入卷：题干够长、不含水印与选项碎片、有答案、stem_flag 为空。"""
     stem = one_line(rec.get("stem"))
     return (len(stem) >= 8 and bool((rec.get("ans") or "").strip())
+            and not rec.get("stem_flag")
             and not DIRTY_STEM.search(stem) and not STEM_FRAGMENT.search(stem))
 
 
@@ -416,6 +424,50 @@ def main():
         check(all(re.fullmatch(r"[A-Z]{2}-\d{4}-\w+-X\d+", row[0]) for row in listed),
               "清单含 id / 年份 / 模块 / 题型")
         check("年份分布" in proc.stdout, "--dry-run 附年份分布")
+
+        # ------------------------------------------------------------------ #
+        print("[14] paper.py 默认 seed 固定与题干异常过滤（P1-4）")
+        same_args = ("paper.py", "--module", "资料分析", "--prov", "国考",
+                     "--years", "2019-2026", "--count", "8", "--dry-run")
+        dry_a = run(*same_args)
+        dry_b = run(*same_args)
+        check(dry_a.returncode == 0 and dry_b.returncode == 0, "两次 --dry-run 均成功")
+        check(dry_a.stdout == dry_b.stdout, "同一参数两次 --dry-run 选题完全一致（默认 seed 固定）")
+        dry_ids = re.findall(r"^\s+\d+\s+(\S+)\s+\d{4}", dry_a.stdout, re.M)
+        check(bool(dry_ids) and len(dry_ids) == 8, f"--dry-run 列出 8 个 id（实际 {len(dry_ids)}）")
+        dry = run("paper.py", "--module", "常识判断", "--count", "5", "--dry-run")
+        md = run("paper.py", "--module", "常识判断", "--count", "5")
+        dry5 = re.findall(r"^\s+\d+\s+(\S+)\s+\d{4}", dry.stdout, re.M)
+        md_ids = re.findall(r"\| `([^`]+)` \|", md.stdout)
+        check("**随机种子**：20260101" in md.stdout, "未给 --seed 时默认 seed=20260101")
+        check(bool(dry5) and dry5 == md_ids[:len(dry5)],
+              "--dry-run 与成卷选题一致（同一默认 seed）")
+
+        sys.path.insert(0, os.path.join(BASE, "scripts"))
+        import paper as paper_mod
+        flagged = {"stem": "很长的题干内容足够八十字以上" * 2, "ans": "A", "stem_flag": "short"}
+        check("题干异常" in paper_mod.quality_issues(flagged), "默认质量过滤排除 stem_flag 非空题")
+        check(not paper_mod.quality_issues(flagged, allow_flagged=True),
+              "--allow-flagged 放开 stem_flag 非空题")
+        check(paper_mod.quality_issues(flagged, allow_dirty=True) == [],
+              "--allow-dirty 同时放开题干异常")
+        check(paper_mod.quota_short_text("资料分析", 2, 5) ==
+              "⚠ 配额不足：资料分析 缺 3 题（已缩减）", "配额不足文案格式正确")
+
+        # ------------------------------------------------------------------ #
+        print("[15] paper.py 多模块配额默认题量（P1-4）")
+        quota_args = ("paper.py", "--quota", "常识判断=5", "--quota", "言语理解=10",
+                      "--quota", "资料分析=10", "--format", "json")
+        proc = run(*quota_args)
+        data = json.loads(proc.stdout)
+        mods = Counter(rec["module"] for rec in data)
+        check(proc.returncode == 0, "配额组卷命令成功")
+        check(len(data) == 25, f"配额之和 5+10+10 默认目标 = 25 题（实际 {len(data)}）")
+        check(mods.get("常识判断") == 5 and mods.get("言语理解") == 10
+              and mods.get("资料分析") == 10, f"各模块满足配额（实际 {dict(mods)}）")
+        proc = run("paper.py", "--quota", "常识判断=5", "--quota", "言语理解=10",
+                   "--quota", "资料分析=10", "--dry-run")
+        check("选题 25 题" in proc.stdout, "--dry-run 同样按配额之和 25 题出卷")
 
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

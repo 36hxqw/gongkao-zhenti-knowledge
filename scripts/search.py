@@ -7,7 +7,8 @@
     # 单考点 + 省份
     python scripts/search.py --kaodian ZL-BASE --prov 国考
 
-    # 多关键词 AND（零散知识点组合定位）
+    # 多关键词 AND（零散知识点组合定位；0 命中会自动降级为 2 个词并提示）
+    python scripts/search.py --kw 黑土地 --kw 保护
     python scripts/search.py --kw 基期 --kw 比重 --kw 百分点
 
     # 任一词命中（OR）
@@ -16,8 +17,8 @@
     # 年份 + 模块 + 只要题干摘要
     python scripts/search.py --year 2024 --module 判断推理
 
-    # 按 ID 取完整题目（含解析）
-    python scripts/search.py --id GK-2025-fs-X010 --full
+    # 按 ID 取完整题目（含解析；同题变体的 id 也可直接查）
+    python scripts/search.py --id GD-2023-xj-X056 --full
 
     # 输出 JSON（供程序消费）
     python scripts/search.py --kw 黑土地 --json
@@ -29,6 +30,7 @@ import json
 import os
 import re
 import sys
+from itertools import combinations
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, "data")
@@ -105,6 +107,10 @@ PROV_ALIAS = {
     "广东": "广东", "广东省考": "广东", "gd": "广东",
     "湖北": "湖北", "湖北省考": "湖北", "hb": "湖北",
 }
+
+# 题号形如 GD-2023-xj-X056 / GK-2025-fs-X010（年份+省份+卷别+题号，便于失配时给最近 id）
+ID_RE = re.compile(r"^([A-Za-z]{2,4})-(\d{4})-([A-Za-z0-9]+)-([A-Za-z]+)(\d+)$")
+PROV_CODE = {"GK": "国考", "GD": "广东", "HB": "湖北"}
 
 
 def _read_jsonl(name):
@@ -186,8 +192,9 @@ RE_WS = re.compile(r"\s+")
 def _nospace(s):
     return RE_WS.sub("", s or "")
 
-def match_keywords(rec, kws):
-    hay = " ".join([
+def _hay(rec):
+    """一条记录的可检索全文（--kw AND 检索口径）。"""
+    return " ".join([
         rec.get("stem", ""), rec.get("ctx", ""), rec.get("material", ""),
         " ".join((rec.get("opts") or {}).values()),
         rec.get("expl", ""), rec.get("ans", "") or "",
@@ -195,6 +202,10 @@ def match_keywords(rec, kws):
         rec.get("type", ""), rec.get("module", ""), rec.get("code", ""), rec.get("sub", ""),
         " ".join(rec.get("theme") or []),
     ])
+
+
+def match_keywords(rec, kws):
+    hay = _hay(rec)
     hay_ns = _nospace(hay)
     return all(k.lower() in hay or _nospace(k).lower() in hay_ns for k in kws)
 
@@ -255,9 +266,154 @@ def fmt(rec, full=False, show_expl=True):
     return "\n".join(out)
 
 
+def _canonical_of(rec):
+    """主记录 id；无 canonical 字段（如申论）时视为自身。"""
+    return rec.get("canonical") or rec["id"]
+
+
+def query_by_id(args, recs):
+    """--id 精确查询：命中即返回，不经同题折叠。"""
+    qid = (args.qid or "").strip()
+    hit = next((r for r in recs if r["id"].upper() == qid.upper()), None)
+    if hit is None:
+        _print_id_miss(qid, recs)
+        return 2
+    if args.json:
+        print(json.dumps([hit], ensure_ascii=False, indent=1))
+        return 0
+    main_id = _canonical_of(hit)
+    if main_id != hit["id"]:
+        dup = hit.get("dup_n")
+        if not dup:
+            dup = sum(1 for r in recs if _canonical_of(r) == main_id)
+        print(f"该 id 为同题变体（主记录 {main_id}，该题共 {dup} 个变体）")
+    print(fmt(hit, full=args.full))
+    return 0
+
+
+def _rec_num(rec):
+    """题号（统一转 int，个别记录可能是字符串）。"""
+    n = rec.get("num") or rec.get("no") or 0
+    try:
+        return int(n)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _nearest_ids(qid, recs, n=3):
+    """按「年份+省份+题号」给最接近的 n 个 id（用于 --id 未命中时兜底）。"""
+    m = ID_RE.match(qid)
+    if not m:
+        return []
+    prov_code, year_s, vol_code, _letter, num_s = m.groups()
+    try:
+        year, num = int(year_s), int(num_s)
+    except ValueError:
+        return []
+    prov = PROV_CODE.get(prov_code.upper())
+
+    def key(r):
+        parts = r["id"].split("-")
+        rid_vol = parts[2].lower() if len(parts) >= 3 else ""
+        return (abs(_rec_num(r) - num),
+                0 if rid_vol == vol_code.lower() else 1,
+                _rec_num(r), r["id"])
+
+    pools = []
+    if prov:
+        pools.append([r for r in recs if r["year"] == year and r["prov"] == prov])
+    pools.append([r for r in recs if r["year"] == year])
+    if prov:
+        pools.append([r for r in recs if r["prov"] == prov])
+    pools.append(recs)
+    picked = []
+    for pool in pools:
+        for r in sorted(pool, key=key):
+            if r["id"] not in picked:
+                picked.append(r["id"])
+            if len(picked) >= n:
+                return picked[:n]
+    return picked[:n]
+
+
+def _print_id_miss(qid, recs):
+    print(f"未找到 id「{qid}」。", file=sys.stderr)
+    if not ID_RE.match(qid):
+        print("id 形如 GD-2023-xj-X056（省份-年份-卷别-题号）；也可改用 --year/--prov/--kw 检索。",
+              file=sys.stderr)
+        return
+    print("该 id 形如合法题号：可加 --all-variants 展开同题变体，或核对该题号是否输入有误。",
+          file=sys.stderr)
+    near = _nearest_ids(qid, recs)
+    if near:
+        print("按「年份+省份+题号」相近的最近 3 个 id：" + "、".join(near), file=sys.stderr)
+    else:
+        print("按「年份+省份+题号」未找到相近 id，可改用 --year/--prov/--kw 检索。", file=sys.stderr)
+
+
+def _term_df(kws, hays):
+    """每个词在全库中的文档出现次数（越泛次数越多）。"""
+    norms = [_nospace(h) for h in hays]
+    counts = {}
+    for word in kws:
+        w, wns = word.lower(), _nospace(word).lower()
+        counts[word] = sum(1 for h, hn in zip(hays, norms) if w in h or wns in hn)
+    return counts
+
+
+def keyword_search(sel, kws, corpus, fuzzy=False):
+    """关键词 AND 检索；0 命中且词数 > 2 时自动降级为 2 个词。
+
+    降级策略：按词在全库的出现次数「从多到少」依次去掉词（优先去掉最泛的词，
+    尽量保住题干里更有区分度的词），保留 2 个词重试，首个有命中的组合生效。
+    返回 (命中记录, 被去掉的词列表)。
+    """
+    matcher = match_keywords_fuzzy if fuzzy else match_keywords
+    hits = [r for r in sel if matcher(r, kws)]
+    if hits or len(kws) <= 2:
+        return hits, []
+
+    freq = _term_df(kws, [_hay(r) for r in corpus])
+    drop_n = len(kws) - 2
+    cands = sorted(combinations(range(len(kws)), drop_n),
+                   key=lambda idxs: (-sum(freq[kws[i]] for i in idxs), idxs))
+    for idxs in cands[:30]:
+        keep = [k for i, k in enumerate(kws) if i not in idxs]
+        hits = [r for r in sel if matcher(r, keep)]
+        if hits:
+            dropped = sorted((kws[i] for i in idxs), key=lambda w: -freq[w])
+            return hits, dropped
+    return [], []
+
+
+def _downgrade_msg(dropped, n_words):
+    gone = "、".join(f"「{w}」" for w in dropped)
+    return f"已自动降级：去掉了{gone}（原 {n_words} 词 AND 无命中）"
+
+
+def _print_no_hit(args):
+    """0 命中时给出可执行的下一步建议。"""
+    print("未命中任何题目。", file=sys.stderr)
+    tips = []
+    if args.kw:
+        tips.append("换同义词或更宽的说法（如 黑土地保护 → 黑土地/耕地保护，比重 ↔ 占比）")
+        tips.append("加 --fuzzy 容忍换说法、错字与语序差异")
+        if args.year or args.prov or args.module or args.type_ or args.sub or args.vol:
+            tips.append("去掉 --year/--prov/--module 等限制，或减少到 2 个关键词")
+        else:
+            tips.append("只保留 2 个关键词，或改用 --any 任一词命中")
+    else:
+        tips.append("换用 --kw 关键词检索，或减少 --year/--prov/--module 等限制")
+        tips.append("用 --any 改为任一词命中")
+        tips.append("用 --all-variants 展开同题变体后重试")
+    for i, t in enumerate(tips[:3], 1):
+        print(f"  {i}. {t}", file=sys.stderr)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="公考真题知识库检索")
-    ap.add_argument("--kw", action="append", default=[], help="关键词，可多次；多个为 AND")
+    ap.add_argument("--kw", action="append", default=[],
+                    help="关键词，可多次；多个为 AND（0 命中自动降级为 2 个词）")
     ap.add_argument("--any", nargs="*", default=[], help="任一词命中（OR）")
     ap.add_argument("--fuzzy", action="store_true", help="模糊匹配：同义词 + 2-gram 相似（容忍换说法/错字）")
     ap.add_argument("--kaodian", "--code", dest="kaodian", action="append", default=[],
@@ -272,7 +428,7 @@ def main(argv=None):
     ap.add_argument("--to-year", type=int, help="结束年份")
     ap.add_argument("--prov", help="国考/广东/湖北")
     ap.add_argument("--vol", help="卷别：副省级/地市级/行政执法/县级/乡镇/统一卷…")
-    ap.add_argument("--id", dest="qid", help="按 ID 精确取题")
+    ap.add_argument("--id", dest="qid", help="按 ID 精确取题（同题变体 id 也直接命中，不折叠）")
     ap.add_argument("--limit", type=int, default=5, help="返回条数，默认 5")
     ap.add_argument("--full", action="store_true", help="输出完整题干与解析")
     ap.add_argument("--json", action="store_true", help="输出 JSON")
@@ -293,9 +449,11 @@ def main(argv=None):
             print(f"{code:8s} {mod}·{typ}  {n} 题")
         return 0
 
-    sel = recs
+    # --id 精确查询：命中即返回（同题变体不被折叠），未命中给最近 3 个 id 建议
     if args.qid:
-        sel = [r for r in sel if r["id"].upper() == args.qid.upper()]
+        return query_by_id(args, recs)
+
+    sel = recs
     if args.prov:
         p = PROV_ALIAS.get(args.prov, args.prov)
         sel = [r for r in sel if r["prov"] == p]
@@ -334,36 +492,51 @@ def main(argv=None):
                 want |= {r["code"] for r in sel if k in r["type"] or k in r["code"]}
                 want |= expand_codes([k])
         sel = [r for r in sel if r["code"] in want]
+    dropped = []
     if args.kw:
-        if args.fuzzy:
-            sel = [r for r in sel if match_keywords_fuzzy(r, args.kw)]
-        else:
-            sel = [r for r in sel if match_keywords(r, args.kw)]
+        sel, dropped = keyword_search(sel, args.kw, recs, fuzzy=args.fuzzy)
     if args.any:
         sel = [r for r in sel if match_any(r, args.any)]
 
+    # 默认折叠同题变体；记下本次命中集合里被折叠的变体数
+    n_variants = 0
     if not args.all_variants:
-        sel = [r for r in sel if r.get("canonical", r["id"]) == r["id"]]
+        n_variants = sum(1 for r in sel if _canonical_of(r) != r["id"])
+        sel = [r for r in sel if _canonical_of(r) == r["id"]]
 
     # 排序：年份新 → 省份（国考/广东/湖北）→ 题号
     order = {"国考": 0, "广东": 1, "湖北": 2}
     sel.sort(key=lambda r: (-(r["year"] or 0), order.get(r["prov"], 9),
-                            r.get("num") or 0, r["id"]))
+                            _rec_num(r), r["id"]))
 
     if args.json:
         print(json.dumps(sel[: args.limit], ensure_ascii=False, indent=1))
+        if dropped:
+            print(_downgrade_msg(dropped, len(args.kw)), file=sys.stderr)
         return 0
 
     if not sel:
-        print("未命中任何题目。建议：①减少关键词（只留 2 个）②换同义词（比重/占比、增速/增长率）"
-              "③去掉省份或年份限制 ④用 --any 改为任一词命中。", file=sys.stderr)
+        if n_variants:
+            print(f"（折叠同题变体后无主记录：另有 {n_variants} 条同题变体，加 --all-variants 查看）",
+                  file=sys.stderr)
+        _print_no_hit(args)
         return 2
-    folded = sum(1 for r in recs if r.get("canonical", r["id"]) != r["id"])
-    tip = f"（已折叠 {folded} 条同题变体，--all-variants 可展开）" if not args.all_variants and folded else ""
-    print(f"命中 {len(sel)} 题{tip}，显示前 {min(args.limit, len(sel))} 题：\n")
+
+    if dropped:
+        print(_downgrade_msg(dropped, len(args.kw)))
+    print(f"命中 {len(sel)} 题，显示前 {min(args.limit, len(sel))} 题：\n")
+
+    # 检索范围提示：默认（行测+申论）下申论占比过高时点明
+    if not (args.xingce or args.shenlun):
+        n_shen = sum(1 for r in sel if r.get("module") == "申论")
+        if n_shen and n_shen / len(sel) > 0.30:
+            print(f"申论命中 {n_shen} 条（材料重复度高），可用 --xingce 只看行测\n")
+
     for r in sel[: args.limit]:
         print(fmt(r, full=args.full))
         print("-" * 72)
+    if n_variants:
+        print(f"另有 {n_variants} 条同题变体，加 --all-variants 查看（默认已折叠）")
     return 0
 
 

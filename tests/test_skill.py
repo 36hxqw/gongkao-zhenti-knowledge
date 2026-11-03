@@ -7,6 +7,7 @@
 """
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -145,6 +146,52 @@ def main():
         head = f.read(2000)
     check(head.startswith("---") and "name: gongkao-zhenti-knowledge" in head, "frontmatter 含 name")
     check("description:" in head, "frontmatter 含 description")
+
+    print("[14] --id 命中同题变体（P0-2）")
+    variant_ids = ["GD-2023-xj-X056", "GD-2023-xj-X057", "GD-2023-xj-X062",
+                   "GD-2023-xj-X068", "GD-2023-xj-X072"]
+    all_ok = True
+    for vid in variant_ids:
+        p = run("--id", vid)
+        all_ok = all_ok and p.returncode == 0 and vid in p.stdout
+    check(all_ok, "5 个已知同题变体 id 全部可查")
+    p = run("--id", "GD-2023-xj-X056")
+    check("同题变体" in p.stdout, "变体命中输出「同题变体」提示")
+    check("主记录 GD-2023-xz-X061" in p.stdout, "变体提示主记录 id")
+    check("2 个变体" in p.stdout, "变体提示 dup_n")
+
+    print("[15] 多词 AND 0 命中自动降级（P1-1）")
+    p = run("--kw", "黑土地", "--kw", "保护", "--kw", "粮食安全", "--limit", "2")
+    check(p.returncode == 0 and "命中" in p.stdout, "三词 AND 0 命中降级后有结果")
+    check("已自动降级" in p.stdout, "输出「已自动降级」")
+    check("去掉了「粮食安全」" in p.stdout, "去掉最泛的词，保留 黑土地+保护")
+    check("原 3 词 AND 无命中" in p.stdout, "标注原词数与 AND 语义")
+    p = run("--kw", "量子纠缠", "--kw", "不存在词", "--limit", "1", expect_ok=False)
+    check(p.returncode == 2 and ("1." in p.stderr and "--fuzzy" in p.stderr), "仍 0 命中时给出下一步建议")
+
+    print("[16] 清单查询提示同题变体（P0-2）")
+    out = run("--module", "资料分析", "--limit", "1").stdout
+    m = re.search(r"另有 (\d+) 条同题变体", out)
+    check(m is not None and int(m.group(1)) > 0, "清单查询末尾输出「另有 N 条同题变体」")
+    check("加 --all-variants 查看" in out, "提示加 --all-variants 查看")
+    out = run("--module", "资料分析", "--limit", "1", "--all-variants").stdout
+    check("另有" not in out, "--all-variants 时不再提示折叠")
+
+    print("[17] 不存在的 id 给出最近 3 个 id（P0-2）")
+    p = run("--id", "GD-2023-xj-X999", expect_ok=False)
+    msg = p.stdout + p.stderr
+    check("最近 3 个 id" in msg, "提示按年份+省份+题号给出的最近 3 个 id")
+    near = [i for i in re.findall(r"[A-Z]{2}-\d{4}-[A-Za-z0-9]+-[A-Za-z]+\d+", msg)
+            if i != "GD-2023-xj-X999"]
+    check(len(near) == 3, f"恰好给出 3 个候选 id（{near}）")
+    p = run("--id", "GD-2023-X999", expect_ok=False)
+    check("GD-2023-xj-X056" in (p.stdout + p.stderr), "非法格式 id 提示正确格式")
+
+    print("[18] 申论命中占比提示（P2-3）")
+    out = run("--kw", "新质生产力", "--limit", "1").stdout
+    check("申论命中" in out and "--xingce" in out, "默认检索申论占比高时提示 --xingce")
+    out = run("--kw", "新质生产力", "--xingce", "--limit", "1").stdout
+    check("申论命中" not in out, "--xingce 时不再提示申论占比")
 
     print()
     if FAILED:

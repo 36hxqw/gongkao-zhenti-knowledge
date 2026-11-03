@@ -5,7 +5,7 @@
 | | lite | full |
 |---|---|---|
 | 体积（zip / 解压） | **6.6 MB / 18.3 MB** | 41.0 MB / 76.0 MB |
-| 内容 | 全部 Markdown 题库（考点 48 + 原卷 98 + 申论 106 + 分片 127）、`data/search-index.tsv`、`stats.json`、`scripts/search.py` `selfcheck.py` | lite 全部内容 + `data/*.jsonl` 题库 + `references/images/` 3 387 张配图 + 组卷/错题本/评测/CI/流水线 |
+| 内容 | 全部 Markdown 题库（考点 48 + 原卷 98 + 申论 106 + 分片 127）、`data/search-index.tsv`、`stats.json`、`scripts/search.py` `selfcheck.py` | lite 全部内容 + `data/*.jsonl` 题库 + `references/images/` 3 536 张配图 + 组卷/错题本/评测/CI/流水线 |
 | 检索方式 | 打开 Markdown 直接读；或按 `search-index.tsv` 文本匹配拿 `id` 再回原卷 | `scripts/search.py` 全功能（考点/子考点/关键词/模糊/难度/主题/折叠） |
 | 图形题与图表材料 | **无配图**（Markdown 中的配图引用已在打包时移除） | 完整配图 |
 | 适用 | 豆包等宿主上传（体积友好）、只需"查真题 + 看答案" | 本地刷题、组卷、错题本、评测、二次开发 |
@@ -48,7 +48,7 @@ git push origin main --tags
 
 | 部分 | 约 |
 |---|---|
-| `references/images/`（3 387 张 JPEG） | 31 MB |
+| `references/images/`（3 536 张 JPEG） | 31 MB |
 | `references/juan/`（98 套行测原卷） | 6 MB |
 | `references/shenlun/`（106 套申论原卷） | 2 MB |
 | `references/kaodian/` + 分片 | 1.3 MB |

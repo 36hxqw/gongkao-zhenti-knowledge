@@ -8,10 +8,11 @@
 2. paper.py 答案页与题库一致、配图路径标注
 3. paper.py --format json：可解析、字段完整、考点过滤、默认折叠同题变体
 4. paper.py 边界：题量不足如实提示、无结果退出码 2、--shenlun 预留报错
-5. wrongbook.py add → list → report → stats 全链路
-6. wrongbook.py 重复 add 幂等（不产生重复行，更新错因与备注）
-7. wrongbook.py 非法 id 退出码非 0、提示最接近的 3 个 id、不写脏数据
-8. 存储目录自动创建、.gitignore 已忽略 user/
+5. paper.py 年份配额（单年 ≤ 40%）、题型排除、默认质量过滤、模块配额、--dry-run
+6. wrongbook.py add → list → report → stats 全链路
+7. wrongbook.py 重复 add 幂等（不产生重复行，更新错因与备注）
+8. wrongbook.py 非法 id 退出码非 0、提示最接近的 3 个 id、不写脏数据
+9. 存储目录自动创建、.gitignore 已忽略 user/
 
 运行
 ----
@@ -27,6 +28,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable
@@ -36,6 +38,10 @@ Q_NUM = re.compile(r"^### (\d+)\. ", re.M)
 ANS_ROW = re.compile(
     r"^\| (\d+) \| ([A-D—]) \| ([^|]+?) \| ([A-Z]{2}-[A-Z]+) \| `([^`]+)` \|", re.M)
 IMG_REF = re.compile(r"!\[[^\]]*\]\((references/images/[^)]+)\)")
+
+# 与 scripts/paper.py 的默认质量过滤口径一致（水印/广告、选项碎片、题干过短、无答案）
+DIRTY_STEM = re.compile(r"本试卷由|粉笔|上岸|微信公众号|扫码|关注我们|QQ群")
+STEM_FRAGMENT = re.compile(r"[）)]\s*A[.、．]|\.\s*上\s*[A-D][.、．]")
 
 
 def mark(ok):
@@ -99,6 +105,17 @@ def first(bank, pred):
     return None
 
 
+def one_line(text):
+    return re.sub(r"\s+", " ", (text or "")).strip()
+
+
+def is_clean(rec):
+    """默认质量过滤下可入卷：题干够长、不含水印与选项碎片、有答案。"""
+    stem = one_line(rec.get("stem"))
+    return (len(stem) >= 8 and bool((rec.get("ans") or "").strip())
+            and not DIRTY_STEM.search(stem) and not STEM_FRAGMENT.search(stem))
+
+
 TAX_ROW = re.compile(
     r"^\|\s*`([A-Z]{2}-[A-Z]+)`\s*\|\s*([^|]+?)\s*\|\s*[^|]*\|\s*[^|]*\|\s*([^|]+?)\s*\|")
 
@@ -142,12 +159,14 @@ def main():
         available = {rec["code"] for rec in bank.values()
                      if rec.get("module") == "资料分析" and rec.get("prov") == "国考"
                      and 2019 <= (rec.get("year") or 0) <= 2026
-                     and rec.get("canonical", rec["id"]) == rec["id"]}
+                     and rec.get("canonical", rec["id"]) == rec["id"]
+                     and is_clean(rec)}
         expected_spread = min(8, len(available))
         check(len(set(codes)) >= expected_spread,
               f"考点分散：20 题覆盖 {len(set(codes))} 个考点（≥{expected_spread}）")
         check(len(set(codes[:expected_spread])) == expected_spread,
               f"前 {expected_spread} 题覆盖 {expected_spread} 个不同考点（轮转抽样生效）")
+        check(set(codes) <= available, "选题都来自通过质量过滤的候选池")
         ids = [row[4] for row in rows]
         check(len(set(ids)) == 20, "同一套卷无重复题")
 
@@ -195,8 +214,9 @@ def main():
 
         # ------------------------------------------------------------------ #
         print("[4] paper.py 边界")
+        # 牛吃草题全库只有 2 题且都无答案，默认会被质量过滤排除，故放开「无答案」这一项
         proc = run("paper.py", "--module", "数量关系", "--type", "牛吃草问题",
-                   "--count", "10", "--seed", "1")
+                   "--count", "10", "--seed", "1", "--allow-no-answer")
         body = proc.stdout
         match = re.search(r"可用 (\d+) 题（少于请求的 (\d+) 题）", body)
         check(proc.returncode == 0, "题量不足时仍正常出卷（退出码 0）")
@@ -315,6 +335,87 @@ def main():
               ".gitignore 已加入 user/")
         check(os.path.abspath(book).startswith(os.path.abspath(tmp) + os.sep),
               "错题本数据写在临时目录，未污染 user/")
+
+        # ------------------------------------------------------------------ #
+        print("[11] paper.py 年份配额与年份分布")
+        proc = run("paper.py", "--count", "20", "--min-year", "2022", "--seed", "5",
+                   "--format", "json")
+        data = json.loads(proc.stdout)
+        years = Counter(rec["year"] for rec in data)
+        top_year, top_n = years.most_common(1)[0] if years else (0, 0)
+        check(proc.returncode == 0 and len(data) == 20, f"20 题组卷成功（实际 {len(data)} 题）")
+        check(top_n <= 8, f"--min-year 2022：单一年份占比 ≤40%（{top_year} 年 {top_n}/20 题）")
+        check(len(years) >= 4, f"--min-year 2022：年份分散到 {len(years)} 个年份（≥4）")
+
+        proc = run("paper.py", "--module", "资料分析", "--prov", "国考", "--years", "2019-2026",
+                   "--count", "20", "--seed", "7", "--format", "json")
+        data = json.loads(proc.stdout)
+        years = Counter(rec["year"] for rec in data)
+        check(len(data) == 20 and max(years.values()) <= 8,
+              f"--module 资料分析：单一年份占比 ≤40%（最多 {max(years.values())}/20 题）")
+        check(len(years) >= 6, f"--years 2019-2026 覆盖 {len(years)} 个年份（≥6）")
+
+        # ------------------------------------------------------------------ #
+        print("[12] paper.py 题型排除与质量过滤")
+        proc = run("paper.py", "--module", "判断推理", "--count", "30",
+                   "--exclude-type", "科学推理", "--seed", "5", "--format", "json")
+        data = json.loads(proc.stdout)
+        check(len(data) == 30, f"排除题型后仍出满 30 题（实际 {len(data)} 题）")
+        check(not [rec for rec in data if "科学推理" in (rec.get("type") or "")
+                   or rec["code"].startswith("PD-KX")],
+              "--exclude-type 科学推理 后结果里无 PD-KX")
+
+        proc = run("paper.py", "--count", "60", "--seed", "11", "--format", "json")
+        data = json.loads(proc.stdout)
+        stems = [one_line(rec.get("stem")) for rec in data]
+        check(len(data) == 60, f"默认过滤后仍出满 60 题（实际 {len(data)} 题）")
+        check(not [s for s in stems if DIRTY_STEM.search(s)],
+              "默认过滤后无「本试卷由/粉笔」等水印题干")
+        check(not [s for s in stems if STEM_FRAGMENT.search(s)],
+              "默认过滤后无选项碎片特征（「） A.」「上 B.」）")
+        check(all(len(s) >= 8 for s in stems), "默认过滤后无超短题干（≥8 字）")
+        check(all((rec.get("ans") or "").strip() for rec in data), "默认过滤后无空答案题")
+
+        strict_md = os.path.join(tmp, "strict.md")
+        loose_md = os.path.join(tmp, "loose.md")
+        run("paper.py", "--prov", "广东", "--min-year", "2026", "--count", "20", "--seed", "3",
+            "--out", strict_md)
+        run("paper.py", "--prov", "广东", "--min-year", "2026", "--count", "20", "--seed", "3",
+            "--allow-dirty", "--out", loose_md)
+        strict_cand = re.search(r"候选 (\d+) 题", read_text(strict_md))
+        loose_cand = re.search(r"候选 (\d+) 题", read_text(loose_md))
+        check(bool(strict_cand and loose_cand), "组卷结果标明候选题量")
+        if strict_cand and loose_cand:
+            check(int(loose_cand.group(1)) > int(strict_cand.group(1)),
+                  f"--allow-dirty 关闭质量过滤后候选池变大"
+                  f"（{strict_cand.group(1)} → {loose_cand.group(1)} 题）")
+
+        # ------------------------------------------------------------------ #
+        print("[13] paper.py 模块配额与 --dry-run")
+        proc = run("paper.py", "--quota", "资料分析=5", "--quota", "判断推理=5",
+                   "--seed", "9", "--format", "json")
+        data = json.loads(proc.stdout)
+        mods = Counter(rec["module"] for rec in data)
+        check(proc.returncode == 0 and len(data) == 10,
+              f"配额组卷题量 = 配额之和 10 题（实际 {len(data)} 题）")
+        check(mods.get("资料分析") == 5 and mods.get("判断推理") == 5,
+              f"各模块恰好 5 题（实际 {dict(mods)}）")
+
+        proc = run("paper.py", "--quota", "资料分析=5", "--quota", "判断推理=5",
+                   "--count", "6", "--seed", "9", "--format", "json")
+        data = json.loads(proc.stdout)
+        check(len(data) == 6, f"配额之和超过 --count 时按上限出题（实际 {len(data)} 题）")
+
+        dry_path = os.path.join(tmp, "dry-run.md")
+        proc = run("paper.py", "--module", "资料分析", "--prov", "国考", "--years", "2019-2026",
+                   "--count", "8", "--seed", "2", "--dry-run", "--out", dry_path)
+        check(proc.returncode == 0, "--dry-run 正常退出")
+        check(not os.path.exists(dry_path), "--dry-run 不写文件（忽略 --out）")
+        listed = re.findall(r"^\s+\d+\s+(\S+)\s+(\d{4})\s+(\S+)\s+(\S+)", proc.stdout, re.M)
+        check(len(listed) == 8, f"--dry-run 打印 8 行选题清单（实际 {len(listed)} 行）")
+        check(all(re.fullmatch(r"[A-Z]{2}-\d{4}-\w+-X\d+", row[0]) for row in listed),
+              "清单含 id / 年份 / 模块 / 题型")
+        check("年份分布" in proc.stdout, "--dry-run 附年份分布")
 
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

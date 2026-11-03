@@ -136,7 +136,7 @@ gongkao-zhenti-knowledge/
 ## 六、常见问题
 
 **Q：安装后模型没有调用它？**
-A：检查 `SKILL.md` 的 `description` 是否被平台截断（部分平台限制 1024 字符）。可把 `description` 精简为第一句"公考真题知识库（国考/广东省考/湖北省考，行测 11393 题 + 申论 414 题，含答案与解析）"。
+A：检查 `SKILL.md` 的 `description` 是否被平台截断（部分平台限制 1024 字符）。可把 `description` 精简为第一句"公考真题知识库（国考/广东省考/湖北省考，行测 11393 题 + 申论 419 题，含答案与解析）"。
 
 **Q：只有真题、没有技巧？**
 A：需同时安装 `gongkao-huasheng13`。本 skill 的 `docs/kaodian-taxonomy.md` 已写好每个考点对应的花生十三文件与章节。

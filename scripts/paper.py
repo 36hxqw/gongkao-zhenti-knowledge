@@ -22,6 +22,7 @@
 组卷规则
 --------
 1. 过滤：--module / --type / --code / --prov / --years / --min-year / --exclude-type；
+   默认排除体系外补充题型 PD-SJ（事件排序）与 PD-KX（科学推理），--allow-extra 放开。
    默认 --exclude-dup 只取 canonical == id 的主记录（同题变体折叠，--no-exclude-dup 可展开）。
 2. 质量过滤（默认开启，--allow-dirty 关闭）：排除
    - 题干含「本试卷由 / 粉笔 / 上岸 / 微信公众号 / 扫码 / 关注我们 / QQ群」等水印广告的题；
@@ -103,6 +104,12 @@ MIN_STEM_LEN = 8
 
 # 默认随机种子：未显式给 --seed 时固定，保证 --dry-run 与成卷、两次运行结果一致
 DEFAULT_SEED = 20260101
+
+# ---- 体系外补充题型（组卷默认不出，--allow-extra 放开）---------------------- #
+# 事件排序是旧国考题型、科学推理是广东特色题型，都不属于花生十三行测五大模块的
+# 主干考点，只作题库补充；组卷默认排除，避免卷子里混进「体系外」题。
+EXTRA_CODES = ("PD-SJ", "PD-KX")
+EXTRA_LABEL = "事件排序（PD-SJ）、科学推理（PD-KX）"
 
 
 def _soft_stdio():
@@ -622,6 +629,8 @@ def main(argv=None):
     ap.add_argument("--type", dest="type_", help="题型（子串匹配），如 图形推理、综合分析")
     ap.add_argument("--exclude-type", dest="exclude_type", action="append", default=[],
                     metavar="KW", help="排除题型（子串匹配，可多次），如 --exclude-type 科学推理")
+    ap.add_argument("--allow-extra", dest="allow_extra", action="store_true",
+                    help=f"放开体系外补充题型 {EXTRA_LABEL}（默认排除）")
     ap.add_argument("--code", action="append", default=[],
                     help="考点编码或中文题型名，可多次，如 ZL-BILI / 比重计算与比较")
     ap.add_argument("--prov", help="省份：国考/广东/湖北")
@@ -713,6 +722,9 @@ def main(argv=None):
             text = f"{rec.get('type') or ''} {rec.get('code') or ''}"
             return any(kw in text for kw in exclude_types)
         sel = [r for r in sel if not excluded(r)]
+    # 体系外补充题型（PD-SJ 事件排序 / PD-KX 科学推理）默认不出卷，--allow-extra 放开
+    if not args.allow_extra:
+        sel = [r for r in sel if (r.get("code") or "") not in EXTRA_CODES]
     if args.exclude_dup:
         sel = [r for r in sel if r.get("canonical", r["id"]) == r["id"]]
 
@@ -779,6 +791,8 @@ def main(argv=None):
         filters.append("题型=" + args.type_)
     if exclude_types:
         filters.append("排除题型=" + "、".join(exclude_types))
+    if not args.allow_extra:
+        filters.append("已排除体系外补充题型")
     if args.code:
         filters.append("考点=" + "、".join(args.code))
     if prov:

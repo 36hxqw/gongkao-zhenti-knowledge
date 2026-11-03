@@ -4,11 +4,11 @@
 
 ## 一、命题规律
 
-- **本题型真题总量**：39 题（2001–2026）
-- **地区分布**：国考 13 / 广东 19 / 湖北 7
+- **本题型真题总量**：38 题（2001–2026）
+- **地区分布**：国考 12 / 广东 19 / 湖北 7
 - **近六年题量**：2026年1题, 2025年4题, 2024年2题, 2023年1题, 2022年1题, 2021年3题
 - **覆盖试卷**：24 套
-- **子考点分布**：年均增长率计算 34　年均增长率比较 9
+- **子考点分布**：年均增长率计算 34　年均增长率比较 8
 - **同题变体**：另有 4 道为同题重复（同年多卷/跨年再考），已折叠，需展开见 scripts/search.py --all-variants
 - **速算/速解提示**：见花生十三 `references/ziliao-susuan.md` 与 `references/shuliang-gongshi.md` 对应章节
 
@@ -267,7 +267,7 @@
 | 年代 | 题量 | 分片文件 |
 |---|---:|---|
 | 2000s | 5 | [ZL-YEAR-2000s.md](split/ZL-YEAR-2000s.md) |
-| 2010s | 21 | [ZL-YEAR-2010s.md](split/ZL-YEAR-2010s.md) |
+| 2010s | 20 | [ZL-YEAR-2010s.md](split/ZL-YEAR-2010s.md) |
 | 2020s | 1 | [ZL-YEAR-2020s.md](split/ZL-YEAR-2020s.md) |
 
-> 也可用 `python scripts/search.py --kaodian ZL-YEAR` 直接检索全部 39 题。
+> 也可用 `python scripts/search.py --kaodian ZL-YEAR` 直接检索全部 38 题。

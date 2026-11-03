@@ -4,12 +4,12 @@
 
 ## 一、命题规律
 
-- **本题型真题总量**：50 题（2009–2026）
-- **地区分布**：国考 22 / 广东 7 / 湖北 21
+- **本题型真题总量**：51 题（2009–2026）
+- **地区分布**：国考 23 / 广东 7 / 湖北 21
 - **近六年题量**：2026年4题, 2025年2题, 2024年5题, 2023年3题, 2022年6题, 2021年1题
-- **覆盖试卷**：36 套
+- **覆盖试卷**：37 套
 - **子考点分布**：摸球与抽取 49　比赛与赛制 8　概率问题（综合） 2
-- **同题变体**：另有 9 道为同题重复（同年多卷/跨年再考），已折叠，需展开见 scripts/search.py --all-variants
+- **同题变体**：另有 8 道为同题重复（同年多卷/跨年再考），已折叠，需展开见 scripts/search.py --all-variants
 - **速算/速解提示**：见花生十三 `references/ziliao-susuan.md` 与 `references/shuliang-gongshi.md` 对应章节
 
 ## 二、近年真题（最多 12 题，按年份倒序）
@@ -248,7 +248,7 @@ gè huáng lí míng cuì liǔ,yì háng bái lù shàng qīng tiān。”其中
 | 年代 | 题量 | 分片文件 |
 |---|---:|---|
 | 2000s | 1 | [SL-GL-2000s.md](split/SL-GL-2000s.md) |
-| 2010s | 25 | [SL-GL-2010s.md](split/SL-GL-2010s.md) |
+| 2010s | 26 | [SL-GL-2010s.md](split/SL-GL-2010s.md) |
 | 2020s | 12 | [SL-GL-2020s.md](split/SL-GL-2020s.md) |
 
-> 也可用 `python scripts/search.py --kaodian SL-GL` 直接检索全部 50 题。
+> 也可用 `python scripts/search.py --kaodian SL-GL` 直接检索全部 51 题。

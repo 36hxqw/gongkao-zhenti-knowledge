@@ -8,7 +8,7 @@
 2. paper.py 答案页与题库一致、配图路径标注
 3. paper.py --format json：可解析、字段完整、考点过滤、默认折叠同题变体
 4. paper.py 边界：题量不足如实提示、无结果退出码 2、--shenlun 预留报错
-5. paper.py 年份配额（单年 ≤ 40%）、题型排除、默认质量过滤、模块配额、--dry-run
+5. paper.py 年份配额（单年 ≤ 40%）、题型排除、默认排除体系外题型、默认质量过滤、模块配额、--dry-run
 6. wrongbook.py add → list → report → stats 全链路
 7. wrongbook.py 重复 add 幂等（不产生重复行，更新错因与备注）
 8. wrongbook.py 非法 id 退出码非 0、提示最接近的 3 个 id、不写脏数据
@@ -372,6 +372,18 @@ def main():
         check(not [rec for rec in data if "科学推理" in (rec.get("type") or "")
                    or rec["code"].startswith("PD-KX")],
               "--exclude-type 科学推理 后结果里无 PD-KX")
+
+        # 体系外补充题型（PD-SJ 事件排序 / PD-KX 科学推理）默认不出卷，--allow-extra 放开
+        proc = run("paper.py", "--module", "判断推理", "--count", "20", "--dry-run")
+        rows = re.findall(r"^\s+\d+\s+(\S+)\s+\d{4}\s+\S+\s+(\S+)", proc.stdout, re.M)
+        check(proc.returncode == 0 and len(rows) == 20, f"判断推理 --dry-run 出满 20 题（实际 {len(rows)}）")
+        check(not [row for row in rows if row[1] in ("事件排序", "科学推理")],
+              "默认组卷排除体系外题型：PD-SJ 事件排序 / PD-KX 科学推理")
+        proc = run("paper.py", "--code", "PD-SJ", "--count", "5", "--dry-run", expect_ok=False)
+        check(proc.returncode == 2, "PD-SJ 默认被排除（--code PD-SJ 无结果退出码 2）")
+        proc = run("paper.py", "--code", "PD-SJ", "--count", "5", "--allow-extra", "--dry-run")
+        check(proc.returncode == 0 and "事件排序" in proc.stdout,
+              "--allow-extra 放开 PD-SJ 事件排序")
 
         proc = run("paper.py", "--count", "60", "--seed", "11", "--format", "json")
         data = json.loads(proc.stdout)

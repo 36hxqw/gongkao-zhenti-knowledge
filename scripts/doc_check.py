@@ -156,11 +156,20 @@ def compute():
     m["x_missing"] = len(x) - len(x_ans)
     m["x_ans_pct"] = round(len(x_ans) / len(x) * 100, 1)
     m["x_missing_pct"] = round((len(x) - len(x_ans)) / len(x) * 100, 1)
-    m["x_ans_note"] = sum(1 for r in x if (r.get("ans_note") or "").strip())
+    # ans_note 有两类（v1.10）：
+    #   ① 置空说明（ans 为空）：答案越界/同题变体冲突，输出时代替答案；
+    #   ② 订正说明（ans 非空）：`答案按原卷解析订正（原 ans=X 与解析结论不一致）`，
+    #      答案本身可用，说明只作附注。
+    # 文档里的「答案置空 N 条」「其中 N 条是判断题」只统计 ①，所以 x_ans_note 保持
+    # 只数「ans 为空」的说明；「带 ans_note 合计」用 x_ans_note_all。
+    x_ans_note_recs = [r for r in x
+                       if (r.get("ans_note") or "").strip() and not has_ans(r)]
+    m["x_ans_note"] = len(x_ans_note_recs)
     m["ans_note_judge"] = sum(
-        1 for r in x
-        if (r.get("ans_note") or "").strip()
-        and set((r.get("opts") or {}).values()) == {"正确", "错误"})
+        1 for r in x_ans_note_recs
+        if set((r.get("opts") or {}).values()) == {"正确", "错误"})
+    m["x_ans_note_all"] = sum(1 for r in x if (r.get("ans_note") or "").strip())
+    m["x_ans_fixed"] = m["x_ans_note_all"] - m["x_ans_note"]
     m["ans_note_variant"] = sum(
         1 for r in x
         if (r.get("ans_note") or "").strip().startswith("同题变体答案不一致"))
@@ -171,7 +180,7 @@ def compute():
     m["s_ans_note"] = sum(snotes.values())
     m["s_note_align"] = snotes.get("答案无法可靠对齐，见本卷「参考答案原文」", 0)
     m["s_note_absent"] = snotes.get("原卷未提供可提取的参考答案", 0)
-    m["ans_note_total"] = m["x_ans_note"] + m["s_ans_note"]
+    m["ans_note_total"] = m["x_ans_note_all"] + m["s_ans_note"]
 
     flags = collections.Counter(r.get("stem_flag") for r in x)
     for f in ("short", "watermark", "contaminated", "missing_opts"):
@@ -367,6 +376,7 @@ NAME = {
     "eval_rule_ok": "规则集模块命中", "eval_rule_pct": "规则集模块准确率",
     "eval_rule_code_ok": "规则集考点命中", "eval_rule_code_pct": "规则集考点准确率",
     "ans_note_total": "ans_note 总数", "ans_note_variant": "变体冲突置空条数",
+    "x_ans_note_all": "行测 ans_note 总数", "x_ans_fixed": "行测答案订正说明",
     "weak_n": "弱标注样本", "weak_mod_pct": "弱标注模块准确率",
     "weak_code_n": "弱标注考点样本", "weak_code_ok": "弱标注考点命中", "weak_code_pct": "弱标注考点准确率",
     "full_tree_mb": "full 解压体积", "lite_zip_mb": "lite zip 体积",
@@ -434,6 +444,7 @@ SNAPSHOT_KEYS = [
     ("行测有答案", ["x_ans", "x_ans_pct"]),
     ("行测缺答案", ["x_missing", "x_missing_pct"]),
     ("行测 ans_note", ["x_ans_note"]),
+    ("行测答案订正说明", ["x_ans_fixed"]),
     ("同组答案冲突", ["ans_conflicts"]),
     ("申论有答案", ["s_ans"]),
     ("申论缺答案", ["s_missing"]),
@@ -689,7 +700,7 @@ RULES = [
     # ---------------- docs/data-spec.md ----------------
     ("docs/data-spec.md", r"`ans_note` \| string\\\|null \| .*?当前 (?P<g0>\d+) 条："
                            r"(?P<g1>\d+) 条 `\"原卷答案与选项不匹配\"`",
-     [(0, "ans_note_total"), (1, "x_ans_note")]),
+     [(0, "x_ans_note_all"), (1, "x_ans_note")]),
     ("docs/data-spec.md", r"全库 \*\*(?P<g0>\d+)\*\* 条，其中 (?P<g1>\d+) 条 `opts` 为空",
      [(0, "fig"), (1, "fig_noopts")]),
     ("docs/data-spec.md", r"当前 (?P<g0>\d+) 条：`short` (?P<g1>\d+) / `watermark` (?P<g2>\d+) / "
@@ -702,7 +713,7 @@ RULES = [
                            r"\+ 跨页续图 (?P<g4>\d+)",
      [(0, "img_mb"), (1, "img_q"), (2, "img_m"), (3, "mat_recs"), (4, "img_p2")]),
     ("docs/data-spec.md", r"合计 (?P<g0>\d+) 条带 `ans_note`（行测 (?P<g1>\d+) \+ 申论 (?P<g2>\d+)）",
-     [(0, "ans_note_total"), (1, "x_ans_note"), (2, "s_ans_note")]),
+     [(0, "ans_note_total"), (1, "x_ans_note_all"), (2, "s_ans_note")]),
     ("docs/data-spec.md", r"全库 (?P<g0>[\d ]+) 条为同题变体（行测 [\d ]+ → 折叠后 (?P<g1>[\d ]+)）",
      [(0, "variants"), (1, "x_main")]),
     ("docs/data-spec.md", r"含变体的组共 \*\*(?P<g0>[\d ]+)\*\* 组", [(0, "multi_groups")]),

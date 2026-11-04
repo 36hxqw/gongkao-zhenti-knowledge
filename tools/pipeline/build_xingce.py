@@ -44,7 +44,8 @@ def run():
         answers = {}
         if p["apath"] and not p["ans_bad"]:
             atext = cached_text(p["apath"], "a")
-            answers = parse_answers(atext)
+            answers = parse_answers(
+                atext, paper="%s%s%s" % (p["prov"], p["year"], p["volume"]))
         got = 0
         for q in qs:
             a = answers.get(q["num"], {})
@@ -56,6 +57,8 @@ def run():
                 "num": q["num"], "sec": q["section"], "sub": q["subtype"],
                 "ctx": q["context"], "stem": q["stem"],
                 "opts": q["options"], "ans": ans,
+                # 答案来源：table（答案表）/ inferred（页内标记或解析结论）
+                "ans_source": a.get("ans_source"),
                 "expl": (a.get("expl") or "")[:4000],
                 "qfile": p["file"], "afile": os.path.basename(p["apath"]) if p["apath"] else None,
                 "num_found": q["num_found"],

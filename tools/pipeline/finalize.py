@@ -144,6 +144,8 @@ def main():
             "num": r["num"], "module": cls["module"], "type": cls["type"],
             "code": cls["code"], "stem": stem, "opts": opts,
             "ans": r["ans"], "expl": expl, "ctx": ctx,
+            # v1.10：答案来源（table=答案表 / inferred=页内标记或解析结论）
+            "ans_source": r.get("ans_source") or "inferred",
             "kw": kw_of(stem + " ".join(opts.values()) + ctx[:400], vocab),
             "fig": fig,
             "src": f"{r['qfile']}|{r['afile'] or ''}",

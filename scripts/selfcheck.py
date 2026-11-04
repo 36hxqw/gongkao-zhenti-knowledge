@@ -8,6 +8,7 @@
 import argparse
 import json
 import os
+import re
 import sys
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,6 +30,50 @@ CODE_MODULE = {
 }
 REQUIRED_X = ["id", "prov", "year", "vol", "num", "module", "type", "code", "stem", "opts", "ans", "kw"]
 REQUIRED_S = ["id", "prov", "year", "vol", "paper", "module", "type", "code", "stem", "ans", "material", "kw"]
+
+# ---- 解析结论抽取（v1.10）----------------------------------------------------
+# 与 pipeline/parse_lib.py 的 `_conclusions()` 同一口径：只认结论句，不认「数字+字母」
+# 的段首弱匹配（「4、A 项正确…」不是答案）。段末取最后一条，先截掉「注：/解析二」尾注。
+RE_EXPL_CONCL = re.compile(
+    r"(?:正确)?答案(?:应)?(?:为|是|选)\s*[:：]?\s*【?\s*([A-D]{1,4})(?![0-9A-Za-z])")
+RE_EXPL_SELECT = re.compile(
+    r"(?:故|所以|因此|由此(?:可见|可知)?|综上(?:所述)?)[，,]?\s*(?:选择|应选|选)\s*"
+    r"([A-D]{1,4})(?![0-9A-Za-z])")
+RE_EXPL_TAIL_NOTE = re.compile(
+    r"(?:注\s*[：:]|【\s*注\s*】|解析二|解析\s*2\b|支持\s*[A-D]\s*答案理由)")
+MISMATCH_LIMIT = 0.01        # 解析结论字母 ≠ ans 的占比上限（回归断言，v1.10）
+
+
+def norm_ans(letters):
+    """多选答案归一：去重保序（ACD / A、C、D → ACD）。"""
+    out = ""
+    for ch in letters or "":
+        if ch in "ABCD" and ch not in out:
+            out += ch
+    return out
+
+
+def expl_answer(rec):
+    """从 expl 取段末结论字母；取不到返回 None。"""
+    body = (rec.get("expl") or "").strip()
+    if not body:
+        return None
+    m = RE_EXPL_TAIL_NOTE.search(body)
+    if m and m.start() >= 20:
+        body = body[:m.start()]
+    hits = [(x.start(), norm_ans(x.group(1))) for x in RE_EXPL_CONCL.finditer(body)]
+    hits += [(x.start(), norm_ans(x.group(1))) for x in RE_EXPL_SELECT.finditer(body)]
+    hits = sorted(h for h in hits if h[1])
+    return hits[-1][1] if hits else None
+
+
+def valid_ans(ans):
+    """答案合法：null 或 1~4 个互不重复的 A-D 字母（多选题允许 ABC/ACD/ABCD）。"""
+    if ans is None:
+        return True
+    if not isinstance(ans, str) or not re.fullmatch(r"[A-D]{1,4}", ans):
+        return False
+    return len(set(ans)) == len(ans)
 
 
 def load(name):
@@ -61,7 +106,7 @@ def main(argv=None):
             problems.append(f"非法考点编码 {r['code']}: {r['id']}")
         if not isinstance(r["opts"], dict):
             problems.append(f"opts 不是对象: {r['id']}")
-        if r["ans"] not in (None, "A", "B", "C", "D"):
+        if not valid_ans(r["ans"]):
             problems.append(f"答案非法 {r['ans']}: {r['id']}")
         if not r["stem"] and not r.get("fig"):
             problems.append(f"题干为空: {r['id']}")
@@ -125,6 +170,30 @@ def main(argv=None):
     for c in sorted(codes):
         if not any(f.startswith(c + "-") for f in files):
             problems.append(f"缺少考点文件: {c}")
+
+    # ---- v1.10 回归断言：解析结论字母 ≠ ans ----
+    # v1.9 时全库 387 条（3.4%）的 ans 与解析结论不符：根因是 parse_lib 用
+    # RE_NUM_LETTER 抓解析首句「4、A 项正确…」的 A，以及无答案表的卷把「故正确答案
+    # 为X」按序号串行赋值。定案（380 条 set_ans）后应只剩个位数；占比 > 1% 说明
+    # `ans` 又被弱匹配/串行赋值带偏，直接失败并列出前 20 个 id。
+    mism, mism_first = [], []
+    for r in x:
+        want = expl_answer(r)
+        if want and r.get("ans"):
+            if want != norm_ans(r["ans"]):
+                mism.append((r["id"], r["ans"], want))
+                if want[0] != norm_ans(r["ans"])[0]:
+                    mism_first.append((r["id"], r["ans"], want))
+    mism_ratio = len(mism) / len(x) if x else 0
+    print(f"解析结论≠ans {len(mism)} 条（{mism_ratio * 100:.2f}%，上限 {MISMATCH_LIMIT * 100:.0f}%）"
+          f"｜其中首字母也不同 {len(mism_first)} 条（多出来的多为多选题 ans 被截成单字母）")
+    if mism:
+        print("  " + "、".join(f"{i}(ans={a},解析={e})" for i, a, e in mism[:20]))
+    if mism_ratio > MISMATCH_LIMIT:
+        problems.append(
+            "解析结论与 ans 不一致 %d 条（%.2f%% > %.0f%%），前 20 个 id：%s"
+            % (len(mism), mism_ratio * 100, MISMATCH_LIMIT * 100,
+               "、".join(i for i, _, _ in mism[:20])))
 
     # 答案覆盖率（仅供参考，不算失败）
     no_ans = sum(1 for r in x if not r["ans"])

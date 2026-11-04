@@ -281,52 +281,104 @@ def parse_paper_text(text):
 
 
 # ---------------------------------------------------------------- answers ----
+# 答案只认三类**结论性**证据，优先级从高到低：
+#   1. 答案表     「1-5 DABBC」「1—5：DABBC」
+#   2. 页内标记   「【解析6—正确答案 D】」（无答案表的回忆版卷只有这种逐题标记）
+#   3. 段末结论   「故/所以/因此/综上…（正确）答案为X」「正确答案为X」「故选X」
+#
+# v1.10 修错（387 条「ans 与解析结论不符」的根因，见 sim/ans_conflict/report.md）：
+#   * **删除** RE_NUM_LETTER（`^(\d+)\s*[.、．]\s*([A-D])`）这类「数字 + 字母」的弱匹配：
+#     它把解析首句「4、A 项正确……」的 A 当成答案（225 条解析题里 216 条的 ans 恰好
+#     等于解析首字母，212 条是「A 项」），而真正的结论写在段末。
+#   * 同一解析段内取**最后一条**结论（段末结论），并在「注：」「解析二」「支持X答案理由」
+#     处截断，避免把补全解析时串进来的下一题结论／争议注当成答案。
+#   * **删除**「整卷结论按序号串行赋值」的兜底：广东 2024/2025、湖北 2025 没有答案表，
+#     旧逻辑把全卷第 k 条「故正确答案为X」赋给第 k 题，全卷一致率只有 29%/19%/33%。
+#     无答案表的卷改用页内标记 → 段末结论。
+#   * 全卷体检：解析答案与答案表一致率 < 90% 时打印告警，并把该卷 ans_source 标为
+#     inferred（答案表本身不可信时以解析结论为准）。
 RE_RANGED = re.compile(r"【?\s*(\d{1,3})\s*[-—–~]\s*(\d{1,3})\s*】?\s*[：:]?\s*([A-D]{2,12})")
-RE_CORRECT = re.compile(r"故(?:正确)?答案(?:应)?(?:为|是)\s*[：:]?\s*【?\s*([A-D])\s*】?")
-RE_CHOOSE = re.compile(r"(?:因此|故|所以)[，,]?\s*(?:选择|应选|选)\s*([A-D])\s*(?:选项|项|$|。|，)")
-RE_ANS_TAG = re.compile(r"【\s*答案\s*】\s*[:：]?\s*([A-D])")
-RE_NUM_LETTER = re.compile(r"^(\d{1,3})\s*[.、．]\s*([A-D])\s*(?:项|$|[：:，,、。［\[（(])")
+RE_ANS_MARK = re.compile(
+    r"【?\s*解析\s*(\d{1,3})\s*[—–\-－~]\s*正确答案\s*(?:为|是)?\s*[:：]?\s*【?\s*([A-D]{1,4})")
+RE_CONCL = re.compile(
+    r"(?:正确)?答案(?:应)?(?:为|是|选)\s*[:：]?\s*【?\s*([A-D]{1,4})(?![0-9A-Za-z])")
+RE_SELECT = re.compile(
+    r"(?:故|所以|因此|由此(?:可见|可知)?|综上(?:所述)?)[，,]?\s*(?:选择|应选|选)\s*"
+    r"([A-D]{1,4})(?![0-9A-Za-z])")
+RE_TAIL_NOTE = re.compile(r"(?:注\s*[：:]|【\s*注\s*】|解析二|解析\s*2\b|支持\s*[A-D]\s*答案理由)")
+MIN_TABLE_AGREE = 0.90
+
+
+def _norm_ans(letters):
+    """多选答案归一：去重保序（“ACD”/“A、C、D”→ ACD），非法值返回 None。"""
+    if not letters:
+        return None
+    out = ""
+    for ch in letters:
+        if ch in "ABCD" and ch not in out:
+            out += ch
+    return out or None
+
+
+def _trim_tail_note(body):
+    """截掉段末的“注：…/解析二…/支持X答案理由…”尾注（段首即出现时不动）。"""
+    m = RE_TAIL_NOTE.search(body or "")
+    if m and m.start() >= 20:
+        return body[:m.start()]
+    return body
+
+
+def _conclusions(body):
+    """段内所有强结论 [(pos, letters)]，按出现位置排序。"""
+    hits = [(m.start(), _norm_ans(m.group(1))) for m in RE_CONCL.finditer(body or "")]
+    hits += [(m.start(), _norm_ans(m.group(1))) for m in RE_SELECT.finditer(body or "")]
+    return sorted(h for h in hits if h[1])
 
 
 def _answer_in_block(body):
-    m = RE_CORRECT.search(body)
-    if m:
-        return m.group(1)
-    m = RE_CHOOSE.search(body)
-    if m:
-        return m.group(1)
-    m = RE_ANS_TAG.search(body)
-    if m:
-        return m.group(1)
-    m = re.search(r"(?:正确)?答案(?:应)?(?:为|是|选)\s*[:：]?\s*([A-D])\b", body)
-    if m:
-        return m.group(1)
-    return None
+    """解析段的段末结论（先截掉尾注）。"""
+    hits = _conclusions(_trim_tail_note(body))
+    return hits[-1][1] if hits else None
 
 
-def parse_answers(text):
-    out = {}
-
-    def put(num, ans, expl=None):
-        rec = out.setdefault(num, {"ans": None, "expl": ""})
-        if ans and not rec["ans"]:
-            rec["ans"] = ans
-        if expl and len(expl) > len(rec["expl"]):
-            rec["expl"] = expl
-
+def _answer_table(text):
+    """答案表：「1-5 DABBC」这类区间速查表。"""
+    table = {}
     for m in RE_RANGED.finditer(text):
         a, b, letters = int(m.group(1)), int(m.group(2)), m.group(3)
         if 0 < b - a + 1 == len(letters):
             for k, ch in enumerate(letters):
-                put(a + k, ch)
+                table.setdefault(a + k, ch)
+    return table
 
-    lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
-    marks = []      # (line_index, num)
+
+def _page_marks(text):
+    """页内逐题标记：「【解析6—正确答案 D】」。"""
+    marks = {}
+    for m in RE_ANS_MARK.finditer(text):
+        marks.setdefault(int(m.group(1)), _norm_ans(m.group(2)))
+    return marks
+
+
+def _parse_segments(lines):
+    """按题号锚点把答案卷切成 {num: 解析段文本}（单调递增，容忍跳号）。"""
+    anchors = []      # (line_index, num)
     expected = 1
+    MARK_PATTERNS = (
+        re.compile(r"^题目\s*(\d{1,3})\s*(?:解析|[.、．])?"),   # 题目1 解析（回忆版）
+        re.compile(r"^(\d{1,3})\s*[.、．]\s*正确答案"),            # 1.正确答案为D
+        re.compile(r"^(\d{1,3})\s+正确答案(?:是|为)"),            # 2 正确答案是:B
+        re.compile(r"^(\d{1,3})\s*[.、．]"),
+        re.compile(r"^(\d{1,3})\s*【\s*答案\s*】"),
+        re.compile(r"^第?\s*【\s*(\d{1,3})\s*】\s*题?"),   # 【1】解析 / 第【1】题
+        re.compile(r"^第\s*(\d{1,3})\s*题"),                # 第1 题
+    )
     for i, ln in enumerate(lines):
-        m = NUM_START.match(ln)
-        if not m:
-            m = re.match(r"^(\d{1,3})\s*【\s*答案\s*】", ln)
+        m = None
+        for pat in MARK_PATTERNS:
+            m = pat.match(ln)
+            if m:
+                break
         if not m:
             continue
         num = int(m.group(1))
@@ -334,21 +386,54 @@ def parse_answers(text):
         if not ok and expected < num <= expected + 60:
             ok = True
         if ok:
-            marks.append((i, num))
+            anchors.append((i, num))
             expected = num + 1
-    if len(marks) >= 5:
-        for i, (li, num) in enumerate(marks):
-            end = marks[i + 1][0] if i + 1 < len(marks) else len(lines)
-            body = "\n".join(lines[li:end])
-            # letter right after the number (F1 style: "1．B")
-            m0 = RE_NUM_LETTER.match(lines[li].strip())
-            ans = m0.group(2) if m0 else None
-            if not ans:
-                ans = _answer_in_block(body)
-            put(num, ans, body)
-    if sum(1 for v in out.values() if v["ans"]) < 5:
-        seq = RE_CORRECT.findall(text)
-        if len(seq) >= 8:
-            for i, ch in enumerate(seq):
-                put(i + 1, ch)
+    seg = {}
+    if len(anchors) >= 5:
+        for i, (li, num) in enumerate(anchors):
+            end = anchors[i + 1][0] if i + 1 < len(anchors) else len(lines)
+            seg[num] = "\n".join(lines[li:end])
+    return seg
+
+
+def parse_answers(text, paper="", min_agree=MIN_TABLE_AGREE):
+    """切出每题答案与解析段：``{num: {"ans", "expl", "ans_source"}}``。
+
+    ``ans_source``：``table``（答案表，且全卷一致率达标）/ ``inferred``（页内标记、
+    段末结论，或答案表一致率低于阈值时的解析结论）。
+    """
+    lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
+    seg = _parse_segments(lines)
+    table = _answer_table(text)
+    page = _page_marks(text)
+    concl = {num: a for num, body in seg.items() if (a := _answer_in_block(body))}
+
+    # 解析侧证据（页内标记 > 段末结论），用于和答案表对照
+    derived = dict(concl)
+    derived.update(page)
+
+    # 全卷体检：解析答案 vs 答案表
+    agree = None
+    if table and derived:
+        common = [n for n in table if n in derived]
+        if common:
+            agree = sum(1 for n in common if table[n] == derived[n]) / len(common)
+    low = agree is not None and agree < min_agree
+    if low:
+        print("⚠ 答案抽取一致率低（%.0f%%，%s）" % (agree * 100, paper or "未命名卷"))
+
+    out = {}
+    for num in sorted(set(seg) | set(table) | set(page)):
+        if low:
+            ans, src = derived.get(num) or table.get(num), "inferred"
+        elif num in table:
+            ans, src = table[num], "table"
+        elif num in page:
+            ans, src = page[num], "inferred"
+        else:
+            ans, src = concl.get(num), "inferred"
+        out[num] = {"ans": ans, "expl": seg.get(num, ""),
+                    "ans_source": src if ans else None}
+    if not table and not page and not concl:
+        print("⚠ 未解析出任何答案（%s）：无答案表、无页内标记、无结论句" % (paper or "未命名卷"))
     return out

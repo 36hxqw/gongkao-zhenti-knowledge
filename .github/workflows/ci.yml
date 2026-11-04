@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   test:
-    name: 数据自检 + 冒烟测试 + 评测
+    name: 数据自检 + 文档数字校验 + 冒烟测试 + 评测
     runs-on: ubuntu-latest
     env:
       PYTHONIOENCODING: utf-8
@@ -25,6 +25,9 @@ jobs:
 
       - name: 数据自检
         run: python scripts/selfcheck.py
+
+      - name: 文档数字校验（docs/stats-snapshot.md 单一事实源）
+        run: python scripts/doc_check.py
 
       - name: 冒烟测试
         run: python tests/test_skill.py

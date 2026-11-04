@@ -265,17 +265,18 @@ def main():
     p = run("--module", "资料分析", "--prov", "湖北", "--limit", str(per_year[newest] + 1),
             "--group-by", "年份")
     check(p.returncode == 0, "--group-by 年份 正常退出")
-    heads = re.findall(r"── (\d{4}) 年（\d+ 题）──", p.stdout)
+    # 组头可能是「（N 题）」或「（显示 N / 共 M 题）」，这里同时兼容两种
+    heads = re.findall(r"── (\d{4}) 年（(?:显示 \d+ / 共 )?\d+ 题）──", p.stdout)
     check(len(heads) >= 2, f"年份分组标题出现（{heads}）")
     check(heads == sorted(heads, reverse=True), "年份分组按年份倒序")
     p = run("--module", "资料分析", "--limit", "10", "--group-by", "考点")
-    codes = re.findall(r"── ([A-Z]{2}-[A-Z]+) [^（]*（\d+ 题）──", p.stdout)
+    codes = re.findall(r"── ([A-Z]{2}-[A-Z]+) [^（]*（(?:显示 \d+ / 共 )?\d+ 题）──", p.stdout)
     check(len(codes) >= 2 and codes == sorted(codes), f"考点分组标题出现且按考点排序（{codes}）")
     p = run("--module", "资料分析", "--limit", "10", "--group-by", "省份")
     check("── 国考（" in p.stdout or "── 广东（" in p.stdout, "省份分组标题出现")
     p = run("--module", "资料分析", "--limit", "10", "--group-by", "年份+考点")
-    check(re.search(r"── \d{4} 年 · [A-Z]{2}-[A-Z]+（\d+ 题）──", p.stdout) is not None,
-          "年份+考点分组标题出现")
+    check(re.search(r"── \d{4} 年 · [A-Z]{2}-[A-Z]+（(?:显示 \d+ / 共 )?\d+ 题）──", p.stdout)
+          is not None, "年份+考点分组标题出现")
     p = run("--module", "资料分析", "--limit", "3")
     check("（已截断：命中" in p.stdout and "显示前 3 条；用 --limit 调整）" in p.stdout,
           "文本模式截断提示出现")
@@ -307,6 +308,107 @@ def main():
           "无答案且无 ans_note 的统一文案")
     check(search_mod.answer_text(dict(base_rec, ans="", ans_note="见原卷")) == "见原卷",
           "ans_note 原样输出")
+
+    print("[23] --kw 与 --any 单关键词字段集合对齐（P1-1）")
+    def hit_total(text):
+        m = re.search(r"命中 (\d+) 题", text)
+        return int(m.group(1)) if m else -1
+
+    kw_n = hit_total(run("--kw", "新质生产力", "--limit", "1").stdout)
+    any_n = hit_total(run("--any", "新质生产力", "--limit", "1").stdout)
+    check(kw_n > 0 and kw_n == any_n, f"--kw 与 --any 单关键词命中数相同（{kw_n} vs {any_n}）")
+    check(search_mod.match_any({"stem": "正文", "module": "资料分析"}, ["资料分析"]),
+          "--any 覆盖 module 字段（与 --kw 同字段集合）")
+    check(search_mod.match_any({"stem": "正文", "code": "ZL-BASE"}, ["ZL-BASE"]),
+          "--any 覆盖 code 字段")
+    check(search_mod.match_any({"stem": "正文", "theme": ["基层治理"]}, ["基层治理"]),
+          "--any 覆盖 theme 字段")
+    check(search_mod.match_any({"stem": "正文", "ans": "A"}, ["A"]),
+          "--any 覆盖 ans 字段")
+
+    print("[24] --fuzzy 阈值、合并与 ≈模糊 标记（P1-2）")
+    def ids_of(text):
+        return set(re.findall(r"^\[([A-Z]{2}-\d{4}-[^]]+)\]", text, re.M))
+
+    exact_out = run("--kw", "占比", "--xingce", "--limit", "2000").stdout
+    fuzzy_out = run("--kw", "占比", "--fuzzy", "--xingce", "--limit", "2000").stdout
+    exact_ids, fuzzy_ids = ids_of(exact_out), ids_of(fuzzy_out)
+    check(bool(exact_ids) and exact_ids <= fuzzy_ids,
+          f"fuzzy 结果包含全部精确命中（{len(exact_ids)} ⊆ {len(fuzzy_ids)}）")
+    check(len(fuzzy_ids) > len(exact_ids),
+          f"fuzzy 额外补入 {len(fuzzy_ids) - len(exact_ids)} 条模糊命中")
+    marked = re.search(r"^\[([A-Z]{2}-\d{4}-[^]]+)\][^\n]*\n  ≈模糊", fuzzy_out, re.M)
+    check(marked is not None, "fuzzy-only 命中带「≈模糊」标记")
+    check(marked is not None and marked.group(1) not in exact_ids,
+          "「≈模糊」只标在 fuzzy-only 命中上")
+    check("≈模糊" not in exact_out, "未加 --fuzzy 时不出现模糊标记")
+    try:
+        jdata = json.loads(run("--kw", "占比", "--fuzzy", "--xingce",
+                               "--limit", "700", "--json").stdout)
+    except json.JSONDecodeError:
+        jdata = []
+    marked_json = {r.get("id") for r in jdata if r.get("fuzzy") is True}
+    check(bool(marked_json), "JSON 模糊命中带 \"fuzzy\": true")
+    check(marked_json <= fuzzy_ids - exact_ids, "JSON fuzzy 只标在 fuzzy-only 命中上")
+    exact_new = hit_total(run("--kw", "新质生产力", "--limit", "1").stdout)
+    fuzzy_new = hit_total(run("--kw", "新质生产力", "--fuzzy", "--limit", "1").stdout)
+    check(fuzzy_new == exact_new,
+          f"0.75 阈值后「新质生产力」无多出的假阳性（{exact_new} vs {fuzzy_new}）")
+
+    print("[25] --group-by 组头显示 / 共（P1-3）")
+    p = run("--module", "资料分析", "--limit", "3", "--group-by", "年份")
+    head = re.search(r"── (\d{4}) 年（显示 (\d+) / 共 (\d+) 题）──", p.stdout)
+    check(head is not None, "截断时组头含「显示 N / 共 M 题」")
+    if head:
+        zl_per_year = {}
+        for rec in x:
+            if "资料分析" in rec["module"] and rec.get("canonical", rec["id"]) == rec["id"]:
+                zl_per_year[rec["year"]] = zl_per_year.get(rec["year"], 0) + 1
+        check(int(head.group(3)) > int(head.group(2)),
+              f"组头「共」为全年题量而非显示条数（{head.group(2)} / {head.group(3)}）")
+        check(head.group(3) == str(zl_per_year.get(int(head.group(1)), -1)),
+              "组头「共」与该年份实际题量一致")
+    p = run("--module", "资料分析", "--prov", "湖北", "--limit", "100000",
+            "--group-by", "年份")
+    check(re.search(r"── \d{4} 年（\d+ 题）──", p.stdout) is not None, "未截断时组头写（N 题）")
+    check("（显示" not in p.stdout, "未截断时不出现「显示」字样")
+
+    print("[26] --list-kaodian 按 code 聚合与 --json（P1-4）")
+    all_recs = load_jsonl("xingce.jsonl") + load_jsonl("shenlun.jsonl")
+    code_set = {r["code"] for r in all_recs}
+    p = run("--list-kaodian")
+    lines = [ln for ln in p.stdout.splitlines() if ln.strip()]
+    check(p.returncode == 0 and len(lines) == len(code_set),
+          f"行数 = 不同 code 数（{len(lines)} vs {len(code_set)}）")
+    check(all(re.fullmatch(r"[A-Z]{2}-[A-Z]+\s+\S+·\S+\s+\d+ 题", ln) for ln in lines),
+          "每行 = code + module·type + 题量")
+    total = sum(int(m.group(1)) for m in
+                (re.search(r"(\d+) 题$", ln) for ln in lines) if m)
+    check(total == len(all_recs), f"各 code 题量合计 = 全量题数（{total}）")
+    try:
+        kdata = json.loads(run("--list-kaodian", "--json").stdout)
+    except json.JSONDecodeError:
+        kdata = []
+    check(isinstance(kdata, list) and len(kdata) == len(code_set),
+          "--list-kaodian --json 可被 json.loads 且项数 = 不同 code 数")
+    check({d.get("code") for d in kdata} == code_set
+          and all({"code", "module", "type", "n"} <= set(d) for d in kdata),
+          "JSON 每项含 code/module/type/n")
+    check(sum(d.get("n", 0) for d in kdata) == len(all_recs), "JSON 题量合计 = 全量题数")
+
+    print("[27] --fields 只输出指定字段（P2）")
+    answered = next(r for r in x if (r.get("ans") or "").strip() and not r.get("ans_note"))
+    p = run("--id", answered["id"], "--fields", "id,ans")
+    check(p.stdout.strip() == f"{answered['id']}\t{answered['ans']}",
+          f"--id + --fields id,ans 只输出两列（{p.stdout.strip()!r}）")
+    check("【答案】" not in p.stdout, "--fields 不输出模板文案")
+    p = run("--module", "资料分析", "--limit", "2", "--fields", "id,ans")
+    rows = [ln for ln in p.stdout.splitlines() if ln.strip()]
+    check(len(rows) == 2 and all(len(ln.split("\t")) == 2 for ln in rows),
+          "--fields 列表中每条一行、恰好两列")
+    check("命中" not in p.stdout, "--fields 不输出命中摘要（便于脚本）")
+    p = run("--fields", "id,nope", expect_ok=False)
+    check(p.returncode == 2 and "未知字段" in p.stderr, "--fields 未知字段给友好提示（退出码 2）")
 
     print()
     if FAILED:

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""数据自检：字段完整性、ID 唯一性、考点编码合法性、索引一致性。
+"""数据自检：字段完整性、ID 唯一性、考点编码合法性、索引一致性、module↔code 一致性。
 
 退出码：0 全部通过；1 存在问题（会打印明细）。
+用法：python scripts/selfcheck.py [-h]
 """
+import argparse
 import json
 import os
 import sys
@@ -20,6 +22,11 @@ VALID_CODES = {
     "CS-ZZ", "CS-JJ", "CS-FL", "CS-LS", "CS-DL", "CS-KJ", "CS-SZ", "CS-SH",
     "SN-DY", "SN-ZH", "SN-DC", "SN-GW", "SN-DZW",
 }
+# code 前缀 → 模块（v1.8 P0-1：module 与 code 必须自洽，否则 --module 检索会漏题）
+CODE_MODULE = {
+    "ZL": "资料分析", "SL": "数量关系", "YY": "言语理解",
+    "PD": "判断推理", "CS": "常识判断", "SN": "申论",
+}
 REQUIRED_X = ["id", "prov", "year", "vol", "num", "module", "type", "code", "stem", "opts", "ans", "kw"]
 REQUIRED_S = ["id", "prov", "year", "vol", "paper", "module", "type", "code", "stem", "ans", "material", "kw"]
 
@@ -30,7 +37,14 @@ def load(name):
         return [json.loads(l) for l in f if l.strip()]
 
 
-def main():
+def main(argv=None):
+    ap = argparse.ArgumentParser(
+        prog="selfcheck.py",
+        description="数据自检：字段完整性、ID 唯一性、考点编码合法性、module↔code 一致性、索引与统计一致性。",
+        epilog="退出码：0 全部通过；1 存在问题（会打印明细）。",
+    )
+    ap.parse_args(argv)          # --help 只打印用法并退出 0，不跑检查
+
     problems = []
     x = load("xingce.jsonl")
     s = load("shenlun.jsonl")
@@ -70,6 +84,17 @@ def main():
         if not r.get("theme"):
             problems.append(f"申论主题为空: {r['id']}")
 
+    # module ↔ code 前缀必须一致（v1.8 P0-1）：否则 --module 检索会漏题、
+    # --list-kaodian 会把同一个 code 拆成多行。不一致的 id 全部列出。
+    bad_pairs = []
+    for r in x + s:
+        want = CODE_MODULE.get(r["code"].split("-")[0])
+        if want and r["module"] != want:
+            bad_pairs.append((r["id"], r["module"], r["code"], want))
+    if bad_pairs:
+        for rid, mod, code, want in bad_pairs:
+            problems.append(f"module 与 code 前缀不一致: {rid}  module={mod}  code={code}（应为 {want}）")
+
     # 索引一致性
     idx_ids = set()
     with open(os.path.join(DATA, "search-index.tsv"), encoding="utf-8") as f:
@@ -105,13 +130,14 @@ def main():
     no_ans = sum(1 for r in x if not r["ans"])
     print(f"行测 {len(x)} 题 / 申论 {len(s)} 题 / 考点文件 {len(files)} 个")
     print(f"答案缺失 {no_ans} 题（{no_ans / len(x) * 100:.1f}%，原因见各题 ans_note 与 docs/coverage.md）")
+    print(f"module↔code 不一致 {len(bad_pairs)} 条")
 
     if problems:
         print(f"\n发现 {len(problems)} 个问题：")
-        for p in problems[:40]:
+        for p in problems:
             print("  -", p)
         return 1
-    print("\n✅ 自检通过：字段、ID、考点编码、索引、统计、考点文件全部一致")
+    print("\n✅ 自检通过：字段、ID、考点编码、module↔code、索引、统计、考点文件全部一致")
     return 0
 
 

@@ -29,6 +29,13 @@
 
     # 输出 JSON（供程序消费）
     python scripts/search.py --kw 黑土地 --json
+
+    # 只输出指定字段（制表符分隔，便于 cut/awk；仅文本输出生效）
+    python scripts/search.py --kw 黑土地 --fields id,ans,sub
+
+    # 列出全部考点及题量（按 code 单键聚合；--json 输出数组）
+    python scripts/search.py --list-kaodian
+    python scripts/search.py --list-kaodian --json
 """
 from __future__ import annotations
 
@@ -246,8 +253,15 @@ def _bigrams(s):
     return {s[i:i + 2] for i in range(len(s) - 1)}
 
 
+FUZZY_THRESHOLD = 0.75
+
+
 def fuzzy_hit(kw, hay):
-    """同义词任一命中，或 2-gram 覆盖率 >= 0.6（容忍语序/个别字差异/空格）。"""
+    """同义词任一命中，或 2-gram 覆盖率高于阈值 0.75（容忍语序/个别字差异/空格）。
+
+    覆盖率必须「高于」0.75：5 字词拆成 4 个 2-gram，覆盖 3 个（0.75）时往往只是
+    共享「生产/产力」这类常用词，收紧后「新质生产力」不再误命中仅谈「生产力」的题。
+    """
     hay_ns = _nospace(hay)
     for v in _EXPAND.get(kw, {kw}):
         if v in hay or _nospace(v) in hay_ns:
@@ -257,15 +271,12 @@ def fuzzy_hit(kw, hay):
     if not a:
         return q in hay_ns
     hit = sum(1 for g in a if g in hay_ns)
-    return hit / len(a) >= 0.6
+    return hit / len(a) > FUZZY_THRESHOLD
 
 
 def match_keywords_fuzzy(rec, kws):
-    hay = " ".join([
-        rec.get("stem", ""), rec.get("ctx", ""), rec.get("material", ""),
-        " ".join((rec.get("opts") or {}).values()),
-        rec.get("expl", ""), rec.get("type", ""), rec.get("sub", ""),
-    ])
+    """模糊 AND 检索：字段集合与 match_keywords 完全一致（复用 _hay）。"""
+    hay = _hay(rec)
     return all(fuzzy_hit(k, hay) for k in kws)
 
 
@@ -288,18 +299,15 @@ def _hay(rec):
 
 
 def match_keywords(rec, kws):
-    hay = _hay(rec)
-    hay_ns = _nospace(hay)
+    raw = _hay(rec)
+    hay, hay_ns = raw.lower(), _nospace(raw).lower()
     return all(k.lower() in hay or _nospace(k).lower() in hay_ns for k in kws)
 
 
 def match_any(rec, kws):
-    hay = " ".join([
-        rec.get("stem", ""), rec.get("ctx", ""), rec.get("material", ""),
-        " ".join((rec.get("opts") or {}).values()),
-        rec.get("expl", ""), " ".join(rec.get("kw") or []),
-    ])
-    hay_ns = _nospace(hay)
+    """任一词命中（OR）：字段集合与 match_keywords 完全一致（复用 _hay）。"""
+    raw = _hay(rec)
+    hay, hay_ns = raw.lower(), _nospace(raw).lower()
     return any(k.lower() in hay or _nospace(k).lower() in hay_ns for k in kws)
 
 
@@ -312,7 +320,7 @@ def expand_codes(words):
     return codes
 
 
-def fmt(rec, full=False, show_expl=True):
+def fmt(rec, full=False, show_expl=True, fuzzy=False):
     head = f"[{rec['id']}] {rec['year']} {rec['prov']}·{rec['vol']}"
     num = rec.get("num") or rec.get("no")
     head += f" 第 {num} 题　| {rec['module']}·{rec['type']}（{rec['code']}）"
@@ -323,6 +331,8 @@ def fmt(rec, full=False, show_expl=True):
     if rec.get("theme"):
         head += f"　主题：{'/'.join(rec['theme'])}"
     out = [head]
+    if fuzzy:
+        out.append("  ≈模糊（仅模糊匹配命中，非精确命中）")
     if rec.get("ctx"):
         ctx = rec["ctx"] if full else rec["ctx"][:160] + ("…" if len(rec["ctx"]) > 160 else "")
         out.append(f"  材料：{ctx}")
@@ -369,6 +379,9 @@ def query_by_id(args, recs):
         return 2
     if args.json:
         print(json.dumps([hit], ensure_ascii=False, indent=1))
+        return 0
+    if getattr(args, "fields", None):
+        print(format_fields(hit, args.fields))
         return 0
     main_id = _canonical_of(hit)
     if main_id != hit["id"]:
@@ -487,17 +500,32 @@ def _term_df(kws, hays):
     return counts
 
 
+def _merge_exact_fuzzy(sel, kws, fuzzy):
+    """计算命中集合：精确命中在前，fuzzy 只补精确没覆盖到的题（去重）。
+
+    返回 (命中记录, fuzzy-only 记录的 id 集合)。--fuzzy 关闭时只有精确命中。
+    """
+    exact = [r for r in sel if match_keywords(r, kws)]
+    if not fuzzy:
+        return exact, set()
+    exact_ids = {r["id"] for r in exact}
+    extra = [r for r in sel if r["id"] not in exact_ids and match_keywords_fuzzy(r, kws)]
+    return exact + extra, {r["id"] for r in extra}
+
+
 def keyword_search(sel, kws, corpus, fuzzy=False):
     """关键词 AND 检索；0 命中且词数 > 2 时自动降级为 2 个词。
 
+    --fuzzy 时把精确命中与模糊命中合并（精确优先、按 id 去重），并返回
+    fuzzy-only 的 id 集合，供输出加「≈模糊」标记 / JSON 的 "fuzzy": true。
+
     降级策略：按词在全库的出现次数「从多到少」依次去掉词（优先去掉最泛的词，
     尽量保住题干里更有区分度的词），保留 2 个词重试，首个有命中的组合生效。
-    返回 (命中记录, 被去掉的词列表)。
+    返回 (命中记录, 被去掉的词列表, fuzzy-only 的 id 集合)。
     """
-    matcher = match_keywords_fuzzy if fuzzy else match_keywords
-    hits = [r for r in sel if matcher(r, kws)]
+    hits, fuzzy_ids = _merge_exact_fuzzy(sel, kws, fuzzy)
     if hits or len(kws) <= 2:
-        return hits, []
+        return hits, [], fuzzy_ids
 
     freq = _term_df(kws, [_hay(r) for r in corpus])
     drop_n = len(kws) - 2
@@ -505,11 +533,11 @@ def keyword_search(sel, kws, corpus, fuzzy=False):
                    key=lambda idxs: (-sum(freq[kws[i]] for i in idxs), idxs))
     for idxs in cands[:30]:
         keep = [k for i, k in enumerate(kws) if i not in idxs]
-        hits = [r for r in sel if matcher(r, keep)]
+        hits, fuzzy_ids = _merge_exact_fuzzy(sel, keep, fuzzy)
         if hits:
             dropped = sorted((kws[i] for i in idxs), key=lambda w: -freq[w])
-            return hits, dropped
-    return [], []
+            return hits, dropped, fuzzy_ids
+    return [], [], set()
 
 
 def _downgrade_msg(dropped, n_words):
@@ -534,6 +562,43 @@ def _print_no_hit(args):
         tips.append("用 --all-variants 展开同题变体后重试")
     for i, t in enumerate(tips[:3], 1):
         print(f"  {i}. {t}", file=sys.stderr)
+
+
+FIELD_NAMES = (
+    "id", "year", "prov", "vol", "num", "module", "type", "code", "sub",
+    "stem", "ctx", "material", "expl", "ans", "ans_note", "kw", "theme",
+    "diff", "stem_flag", "canonical", "dup_n",
+)
+
+
+def parse_fields(text):
+    """解析 --fields 逗号分隔字段名；含未知字段时抛 ValueError（附可选字段）。"""
+    fields = []
+    for tok in re.split(r"[,，、\s]+", text or ""):
+        tok = tok.strip()
+        if tok and tok not in fields:
+            fields.append(tok)
+    bad = [f for f in fields if f not in FIELD_NAMES]
+    if bad or not fields:
+        raise ValueError("、".join(bad) if bad else "（为空）")
+    return fields
+
+
+def field_value(rec, name):
+    """单个字段的文本值（列表字段用 / 连接，答案走 answer_text 口径）。"""
+    if name == "ans":
+        return answer_text(rec)
+    value = rec.get(name)
+    if isinstance(value, (list, tuple)):
+        return "/".join(str(v) for v in value)
+    if value is None:
+        return ""
+    return str(value)
+
+
+def format_fields(rec, fields):
+    """--fields 的一行输出：制表符分隔，便于脚本 cut/awk。"""
+    return "\t".join(field_value(rec, f) for f in fields)
 
 
 def main(argv=None):
@@ -564,10 +629,22 @@ def main(argv=None):
     ap.add_argument("--json", action="store_true", help="输出 JSON")
     ap.add_argument("--shenlun", action="store_true", help="只检索申论")
     ap.add_argument("--xingce", action="store_true", help="只检索行测")
-    ap.add_argument("--list-kaodian", action="store_true", help="列出全部考点及题量")
+    ap.add_argument("--list-kaodian", action="store_true", help="列出全部考点及题量（按 code 聚合；--json 输出数组）")
     ap.add_argument("--all-variants", action="store_true", help="展开同题变体（默认折叠，只出主记录）")
+    ap.add_argument("--fields", metavar="字段", help="文本输出只保留指定字段（逗号分隔，如 id,ans,sub）；"
+                                                   "可选：" + ",".join(FIELD_NAMES))
     args = ap.parse_args(argv)
     _soft_stdio()
+
+    if args.fields:
+        try:
+            args.fields = parse_fields(args.fields)
+        except ValueError as exc:
+            print(f"--fields 含未知字段：「{exc}」\n"
+                  f"可选字段：{','.join(FIELD_NAMES)}。", file=sys.stderr)
+            return 2
+    else:
+        args.fields = None
 
     try:
         years = parse_year_values(args.year)
@@ -582,10 +659,23 @@ def main(argv=None):
     recs = xingce + shenlun
 
     if args.list_kaodian:
-        from collections import Counter
-        cnt = Counter((r["module"], r["type"], r["code"]) for r in recs)
-        for (mod, typ, code), n in sorted(cnt.items(), key=lambda kv: (kv[0][0], -kv[1])):
-            print(f"{code:8s} {mod}·{typ}  {n} 题")
+        # 按 code 单键聚合：一个 code 一行（同 code 的 module/type 取首条记录），
+        # 不再因 (module, type, code) 三元组不同而拆行。
+        agg = {}
+        for rec in recs:
+            code = rec.get("code") or "?"
+            item = agg.get(code)
+            if item is None:
+                agg[code] = {"code": code, "module": rec.get("module") or "",
+                             "type": rec.get("type") or "", "n": 1}
+            else:
+                item["n"] += 1
+        rows = sorted(agg.values(), key=lambda it: (it["module"], -it["n"], it["code"]))
+        if args.json:
+            print(json.dumps(rows, ensure_ascii=False, indent=1))
+            return 0
+        for item in rows:
+            print(f"{item['code']:8s} {item['module']}·{item['type']}  {item['n']} 题")
         return 0
 
     # --id 精确查询：命中即返回（同题变体不被折叠），未命中给最近 3 个 id 建议
@@ -642,8 +732,9 @@ def main(argv=None):
                 want |= expand_codes([k])
         sel = [r for r in sel if r["code"] in want]
     dropped = []
+    fuzzy_ids = set()
     if args.kw:
-        sel, dropped = keyword_search(sel, args.kw, recs, fuzzy=args.fuzzy)
+        sel, dropped, fuzzy_ids = keyword_search(sel, args.kw, recs, fuzzy=args.fuzzy)
     if args.any:
         sel = [r for r in sel if match_any(r, args.any)]
 
@@ -661,10 +752,18 @@ def main(argv=None):
     if args.json:
         if args.group_by:
             print("（JSON 输出为扁平数组，--group-by 仅作用于文本输出）", file=sys.stderr)
+        if args.fields:
+            print("（--fields 仅作用于文本输出，--json 已忽略）", file=sys.stderr)
         if len(sel) > args.limit:
             print(f"（已截断：命中 {len(sel)} 条，显示前 {args.limit} 条；用 --limit 调整）",
                   file=sys.stderr)
-        print(json.dumps(sel[: args.limit], ensure_ascii=False, indent=1))
+        out_recs = []
+        for rec in sel[: args.limit]:
+            item = dict(rec)
+            if rec["id"] in fuzzy_ids:
+                item["fuzzy"] = True
+            out_recs.append(item)
+        print(json.dumps(out_recs, ensure_ascii=False, indent=1))
         if dropped:
             print(_downgrade_msg(dropped, len(args.kw)), file=sys.stderr)
         return 0
@@ -679,6 +778,14 @@ def main(argv=None):
     if dropped:
         print(_downgrade_msg(dropped, len(args.kw)))
     shown = sel[: args.limit]
+
+    if args.fields:
+        if args.group_by:
+            print("（--fields 与 --group-by 同时给定时只输出字段，已忽略分组）", file=sys.stderr)
+        for rec in shown:
+            print(format_fields(rec, args.fields))
+        return 0
+
     print(f"命中 {len(sel)} 题，显示前 {len(shown)} 题：\n")
     if len(sel) > len(shown):
         print(f"（已截断：命中 {len(sel)} 条，显示前 {len(shown)} 条；用 --limit 调整）\n")
@@ -690,14 +797,24 @@ def main(argv=None):
             print(f"申论命中 {n_shen} 条（材料重复度高），可用 --xingce 只看行测\n")
 
     if args.group_by:
-        for title, items in group_hits(shown, args.group_by):
-            print(f"── {title}（{len(items)} 题）──")
-            for r in items:
-                print(fmt(r, full=args.full))
+        # 组头统计按「全量筛选结果」计数，组内只打印本次 --limit 截断后要显示的题，
+        # 截断时写「显示 N / 共 M 题」，未截断时写「M 题」。
+        truncated = len(sel) > len(shown)
+        shown_ids = {r["id"] for r in shown}
+        for title, items in group_hits(sel, args.group_by):
+            visible = [r for r in items if r["id"] in shown_ids]
+            if not visible:
+                continue
+            if truncated:
+                print(f"── {title}（显示 {len(visible)} / 共 {len(items)} 题）──")
+            else:
+                print(f"── {title}（{len(items)} 题）──")
+            for r in visible:
+                print(fmt(r, full=args.full, fuzzy=r["id"] in fuzzy_ids))
                 print("-" * 72)
     else:
         for r in shown:
-            print(fmt(r, full=args.full))
+            print(fmt(r, full=args.full, fuzzy=r["id"] in fuzzy_ids))
             print("-" * 72)
     if n_variants:
         print(f"另有 {n_variants} 条同题变体，加 --all-variants 查看（默认已折叠）")

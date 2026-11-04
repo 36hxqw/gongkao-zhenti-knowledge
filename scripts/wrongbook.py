@@ -176,6 +176,14 @@ def rel_book_path():
         return BOOK
 
 
+def default_book_rel():
+    """默认错题本路径（POSIX 分隔符，供 --help 展示）。"""
+    try:
+        return os.path.relpath(DEFAULT_BOOK, BASE).replace(os.sep, "/")
+    except ValueError:
+        return DEFAULT_BOOK.replace(os.sep, "/")
+
+
 def edit_distance(a, b):
     """Levenshtein 距离（两行滚动 DP，纯标准库）。"""
     if a == b:
@@ -640,11 +648,15 @@ def cmd_stats(args):
 # CLI
 # --------------------------------------------------------------------------- #
 def build_parser():
+    default_path = default_book_rel()
     ap = argparse.ArgumentParser(
-        description="公考错题本：记录错题、关联题库渲染、按考点生成复盘报告",
+        description=("公考错题本：记录错题、关联题库渲染、按考点生成复盘报告\n"
+                     f"默认错题本路径：{default_path}"
+                     "（环境变量 GONGKAO_WRONGBOOK 可覆盖，用于隔离多套错题本）"),
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="示例：python scripts/wrongbook.py add --id GK-2024-fs-X112 --reason 技巧不熟 "
-               "--note \"比重差算成增长率\"")
+        epilog=("示例：python scripts/wrongbook.py add --id GK-2024-fs-X112 --reason 技巧不熟 "
+                "--note \"比重差算成增长率\"\n"
+                f"错题本存储：{default_path}（非 report 的 --out 报告路径）"))
     sub = ap.add_subparsers(dest="cmd", metavar="add|list|report|stats")
 
     p_add = sub.add_parser("add", help="记录错题（同一 id 重复记录只更新时间与错因）")

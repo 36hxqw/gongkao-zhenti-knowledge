@@ -42,7 +42,7 @@
 | 考点 | 编码 | 题量 | 年份跨度 | 文件 |
 |---|---|---:|---|---|
 | 逻辑填空 | `YY-LJTK` | 1269 | 2001–2026 | [YY-LJTK-逻辑填空.md](kaodian/YY-LJTK-逻辑填空.md) |
-| 中心理解 | `YY-ZXJL` | 932 | 2000–2026 | [YY-ZXJL-中心理解.md](kaodian/YY-ZXJL-中心理解.md) |
+| 中心理解 | `YY-ZXJL` | 931 | 2000–2026 | [YY-ZXJL-中心理解.md](kaodian/YY-ZXJL-中心理解.md) |
 | 细节判断 | `YY-XJPD` | 64 | 2000–2026 | [YY-XJPD-细节判断.md](kaodian/YY-XJPD-细节判断.md) |
 | 标题填入 | `YY-BTTR` | 61 | 2003–2026 | [YY-BTTR-标题填入.md](kaodian/YY-BTTR-标题填入.md) |
 | 语句填入 | `YY-YJTR` | 14 | 2003–2026 | [YY-YJTR-语句填入.md](kaodian/YY-YJTR-语句填入.md) |

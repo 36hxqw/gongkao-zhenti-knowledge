@@ -1,5 +1,38 @@
 # CHANGELOG
 
+## v1.8.0（数字单一事实源 + 检索/工具收口）
+
+一句话：**文档数字不再手写**——快照生成 + CI 校验；`module` 与 `code` 必须自洽，`--module` 不再漏题；检索与组卷的边界行为补齐。
+
+### P0 级（会直接导致错误回答的）
+
+- **P0-1 `module` 与 `code` 前缀强制自洽，`--module` 不再漏题。** 逐条修掉 19 条 `module` 与 `code` 前缀冲突的记录（14 条 module 回写 + 5 条 code 纠错，集中在 2023 广东乡镇/县级卷；`GD-2023-xz-*` 的常识判断/言语/判断三处串位）。`scripts/selfcheck.py` 新增 `module↔code` 校验：任一记录 `module` 与 `code` 前缀不匹配即逐条列出并以退出码 1 结束，同时打印「module↔code 不一致 N 条」。效果：**19 → 0**；GD-2023-乡镇卷 `--module 常识判断` **77 → 63**（原先虚高 14 条）、`--module 判断推理` **9 → 18**、`--module 言语理解` **6 → 11**（原先各漏 9/5 条）；`--list-kaodian` 里同一个 `code` 不再因 `module/type` 不同被拆成多行。
+- **P0-2 文档数字改为单一事实源 + CI 校验（根治漂移）。** ① `pipeline/gen_docs.py` 新增 `gen_stats_snapshot()`，从 `data/*.jsonl`、`references/images/`、`tests/gold*.jsonl` 直接复算，生成 **`docs/stats-snapshot.md`（50 项指标）**：题量（全量/折叠）、同题变体与折叠组、答案覆盖、`ans_note`、`stem_flag` 四类、配图三分类、考点/子考点、`PD-TX` 与四类立体子考点、五模块题量、评测准确率、发行包体积；正文无时间戳，同一数据重复生成逐字节一致。② 新增 **`scripts/doc_check.py`**：独立复算（不复用生成器代码，避免同错同对）→ 逐行比对快照；再扫描 `SKILL.md` / `README.md` / `docs/coverage.md` / `docs/distribution.md` / `docs/install.md` / `docs/eval.md` / `docs/data-spec.md` / `skill.json` 的关键数字，按 `文件:行 → 文档值 vs 实测值` 列出并退出 1；`docs/coverage.md` 的 98 行逐卷表按 `(prov, year, vol)` 动态核对题量/有答案/状态；支持 `--json` 与 `--fix`（回写后自动复查）。③ CI 在 `selfcheck.py` 之后加一步 `python scripts/doc_check.py`。效果：首次全量跑出 **115 处行级漂移**（SKILL 29 / README 18 / coverage 39 / distribution 8 / install 1 / eval 1 / data-spec 18 / skill.json 1，涉及 50 余类旧值），全部修正；8 份文档改为「数字以 `docs/stats-snapshot.md` 为准」，后续只需重跑 gen_docs。
+
+### P1 级（检索四处行为 + 工具边界）
+
+- **P1-1 `--fuzzy` 改为「精确优先 + 模糊补充」并收紧阈值。** 命中集合 = 精确命中在前 + 模糊命中补充去重（原先二选一，精确命中的题会被模糊集合整体替换）；2-gram 覆盖率阈值 **0.6 → 必须 > 0.75**（5 字词覆盖 3 个 gram=0.75 时往往只共享「生产力」这类常用词，收紧后「新质生产力」不再误命中只谈「生产力」的题）；文本输出给模糊独有命中加 `≈模糊（仅模糊匹配命中，非精确命中）`，JSON 加 `"fuzzy": true`。
+- **P1-2 新增 `--fields` 字段裁剪。** 逗号分隔取 21 个字段（`id,year,prov,vol,num,module,type,code,sub,stem,ctx,material,expl,ans,ans_note,kw,theme,diff,stem_flag,canonical,dup_n`），文本输出为制表符分隔单行、不带任何模板文案，便于 `cut/awk`；未知字段给可选项提示并退出 **2**；`--json` 与 `--group-by` 同给时明确提示忽略关系。
+- **P1-3 `--list-kaodian` 按 `code` 单键聚合。** 一个 `code` 一行（`module/type` 取首条记录），不再因 `(module, type, code)` 三元组不同而把同一考点拆成多行；新增 `--json` 输出数组（`code/module/type/n`）。当前 **48** 个有题编码 = 48 行、合计 11 812 题。
+- **P1-4 `--group-by` 组头改为按全量命中计数。** 组头写「显示 N / 共 M 题」（未截断时写「M 题」），组内只打印 `--limit` 截断后要显示的题；此前组头按「已截断集合」计数，会被误读成该维度总量。
+- **P1-5 `--any` 的字段集合与 `--kw` 对齐。** OR 检索复用同一 `_hay()`（补上 `kw` 关键词标签），并与 `--kw` 一起做大小写归一化；此前 `--any` 少 `kw` 字段、`--kw` 大小写敏感，同一查询在 AND/OR 两种写法下命中集不一致。
+
+### P1-6..8（组卷 / 错题本的边界表述）
+
+- **P1-6 组卷年份上限告警说清根因。** 单年份候选太集中而放宽 40% 年上限时，统一打印「⚠ 单年份无法满足 40% 年上限，已放宽上限（年份配额不足以凑满，已从其他年份补 N 题（YYYY 年 X 题…））」；`--dry-run`、成卷 Markdown、stderr 三处共用 `relaxed_text()`，不再只写「年份配额不足以凑满」让人误以为 `--years` 给错。
+- **P1-7 答案页不再出现「答案列/解析列各一个字母」。** 解析过短（< 10 字，常见是答案页只剩 `C`）时，解析列改写为 `C（原解析缺失，仅答案）`；`expl` 为空仍写「（原卷无解析）」。
+- **P1-8 错题本 `--help` 说明存储位置。** 打印默认错题本路径 `user/wrongbook.jsonl`，并说明 `GONGKAO_WRONGBOOK` 可覆盖（与 `report --out` 的报告路径区分），避免把 `out/wrongbook.jsonl` 当成错题本本体。
+
+### 数据 / 文档同步（本轮复算）
+
+- 数据：`module` 回写 14 条、`code` 纠错 5 条、`type` 修正 21 条、`stem_flag` 去掉 3 条误标（`GD-2023-xz-X089`、`HB-2025-ty-X011/X012`）。
+- 总览：行测 **11 393** 题、申论 **419** 题；折叠后主记录 **10 302**、同题变体 **1 091**、含变体的组 **1 021**、同组答案冲突 **0**；行测有答案 **8 478（74.4%）**、缺失 **2 915（25.6%）**；`ans_note` **15**（全部越界，判断题 5）；申论有参考答案 **287**、见原卷 **132**；`stem_flag` **136**（short 136，其余 0）；配图 **3 536**（题目图 3 148 / 材料图 225 / 跨页 163，55.4MB）；有题考点 **48**、三级子考点 **197**；`PD-TX` **843/826**，折纸盒 **68/66**、三视图 **25/22**、截面 **24/21**、立体拼合 **62/62**；答案完整卷 **33**、零答案 **26**、部分缺失 **39**；`fig=true` **271**（249 条 `opts` 为空）。
+- 评测：强标注 189 + 人工 154 = **343** 条，模块 **98.0%（336/343）**、考点 **82.2%（282/343）**；弱标注 190 条（含考点 91），模块 99.5%、考点 **38.5%**（原记 36.3%）。
+- `docs/coverage.md` 逐卷表按 `data/xingce.jsonl` 复算修正 **10 行**（国考 2011 134→135、2016 地市 112→113、2017 副省 133→134、2017 地市 128→130、2025 执法 129→130、2026 地市 122→123、2026 执法 129→130、广东 2025 57→59、湖北 2011 116→117、湖北 2025 92→93），总览多项同步。
+- `docs/distribution.md` 包体积改为按实际清单/工作树写：lite zip 6.6 MB、full zip 41.0 MB（`dist/` 现有 v1.4.0 产物）、full 解压后 **106.6 MB**（v1.8.0 工作树），体积构成逐项复算。
+- `skill.json` 与 `SKILL.md` frontmatter 版本 → **1.8.0**；`SKILL.md` §2.3 的「62 组元数据回写、`code` 覆盖时 `module/type` 同步」改为现行规则「**`module/type` 不覆盖；分节不可信时以 `code` 前缀回写 `module/type`**」，并同步折叠/变体/有答案/缺失/`ans_note`/`stem_flag`/`fig`/ZL-BASE/立体子考点等全部数字。
+- 验收：`selfcheck.py` ✅（module↔code 不一致 0 条）、`tests/test_skill.py` ✅、`tests/test_tools.py` ✅、`tests/eval.py` 模块 98.0% / 考点 82.2%（未回归）；`python pipeline/gen_docs.py` 生成快照、`python scripts/doc_check.py` 退出码 0，故意改错一处数字后退出码 1（已复原）。
+
 ## v1.7.2（复核收口）
 
 - GK-2017-ds-X060 答案按原卷定案为 **C**（同组 GK-2017-fs-X050 亦为 C），dup_note 改为「已按原卷定案」。

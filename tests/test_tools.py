@@ -481,6 +481,52 @@ def main():
                    "--quota", "资料分析=10", "--dry-run")
         check("选题 25 题" in proc.stdout, "--dry-run 同样按配额之和 25 题出卷")
 
+        # ------------------------------------------------------------------ #
+        print("[16] paper.py 答案页不出现单字母解析（P1-8）")
+        sample = [
+            {"id": "GK-2024-ty-X901", "module": "资料分析", "type": "基期量计算",
+             "code": "ZL-BASE", "ans": "C", "expl": "C"},
+            {"id": "GK-2024-ty-X902", "module": "资料分析", "type": "基期量计算",
+             "code": "ZL-BASE", "ans": "A", "expl": ""},
+            {"id": "GK-2024-ty-X903", "module": "资料分析", "type": "基期量计算",
+             "code": "ZL-BASE", "ans": "B", "expl": "这是一段足够长的解析文字，用于对照不被替换。"},
+        ]
+        table = "\n".join(paper_mod.render_answers(sample))
+        cells = [c.strip() for c in re.findall(r"\| ([^|\n]+?) \|$", table, re.M)]
+        check(all(not re.fullmatch(r"[A-D—]", c) for c in cells),
+              "答案页解析列无单字母（含空解析）")
+        check("C（原解析缺失，仅答案）" in table and "A（原解析缺失，仅答案）" in table,
+              "短解析改用 ans + 「（原解析缺失，仅答案）」")
+        check("这是一段足够长的解析文字" in table, "正常解析原样输出")
+        md = run("paper.py", "--count", "20", "--seed", "7").stdout
+        cells = [c.strip() for c in re.findall(r"\| ([^|\n]+?) \|$", md, re.M)]
+        check(bool(cells) and all(not re.fullmatch(r"[A-D—]", c) for c in cells),
+              "真实成卷答案页无单字母解析")
+
+        # ------------------------------------------------------------------ #
+        print("[17] paper.py 单年份配额放宽提示（P1-6）")
+        relaxed_args = ("paper.py", "--prov", "广东", "--min-year", "2026",
+                        "--count", "20", "--seed", "3")
+        proc = run(*relaxed_args, "--dry-run")
+        check("⚠ 单年份无法满足 40% 年上限，已放宽上限" in proc.stdout,
+              "--dry-run 打印「单年份无法满足 40% 年上限，已放宽上限」")
+        check("年份配额不足以凑满" in proc.stdout, "保留原「年份配额不足以凑满」提示")
+        proc = run(*relaxed_args)
+        combined = proc.stdout + proc.stderr
+        check("⚠ 单年份无法满足 40% 年上限，已放宽上限" in combined,
+              "成卷（md + stderr）提示单年份放宽上限")
+        check("已从其他年份补" in combined, "成卷仍说明补题来源与题数")
+
+        # ------------------------------------------------------------------ #
+        print("[18] wrongbook.py --help 默认路径（P1-7）")
+        proc = run("wrongbook.py", "--help")
+        check(proc.returncode == 0, "--help 正常退出")
+        check("user/wrongbook.jsonl" in proc.stdout,
+              "--help 明确打印默认路径 user/wrongbook.jsonl")
+        check("GONGKAO_WRONGBOOK" in proc.stdout, "--help 说明环境变量可覆盖")
+        check("out/wrongbook.jsonl" not in proc.stdout,
+              "默认路径不再与 out/wrongbook.jsonl 混淆")
+
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

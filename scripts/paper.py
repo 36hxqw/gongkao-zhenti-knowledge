@@ -453,6 +453,23 @@ def quota_short_text(mod, got, want):
     return f"⚠ 配额不足：{mod} 缺 {max(0, want - got)} 题（已缩减）"
 
 
+def relaxed_text(plan, short=False):
+    """单年份无法满足年份上限时的告警文案（保留原提示信息）。
+
+    默认 40% 上限下，若候选年份太集中就会放宽上限补题；这里把「单年份」这一
+    根因说清楚，同时保留原「年份配额不足以凑满 / 从其他年份补 N 题」的信息。
+    """
+    ratio = plan.get("ratio") or 0.4
+    head = f"⚠ 单年份无法满足 {ratio:.0%} 年上限，已放宽上限"
+    n = plan.get("relaxed") or 0
+    if short:
+        return f"{head}（年份配额不足以凑满，补入 {n} 题）"
+    ry = plan.get("relaxed_years") or {}
+    years_txt = "、".join(f"{y} 年 {c} 题" for y, c in sorted(ry.items(), reverse=True))
+    return (f"{head}（年份配额不足以凑满，已从其他年份补 {n} 题（{years_txt}）；"
+            f"如需严格限年可减少 --count 或放宽 --years）")
+
+
 def _width(text):
     """终端显示宽度：CJK 全角按 2 列算，用于对齐选题清单。"""
     return sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in text)
@@ -508,8 +525,10 @@ def render_answers(picked):
         expl = cell(rec.get("expl"))
         if len(expl) > 200:
             expl = expl[:199].rstrip() + "…"
-        if not expl:
-            expl = "（原卷无解析）"
+        # 解析过短（常见是答案页只剩单个字母，如 expl="C"）时不能当解析展示，
+        # 改用答案 + 缺失说明，避免答案列与解析列各出一个「C」。
+        if len(expl) < 10:
+            expl = f"{ans}（原解析缺失，仅答案）"
         out.append(f"| {i} | {ans} | {cell(rec['module'] + '·' + rec['type'])} | "
                    f"{rec['code']} | `{rec['id']}` | {expl} |")
     out.append("")
@@ -561,10 +580,7 @@ def render_md(picked, total_avail, filters_desc, seed, plan, seed_given=True):
         lines.append(f"- **提示**：可用 {len(picked)} 题（少于请求的 {target} 题），"
                      f"已按实际题量出卷，未重复凑数；可放宽 --years/--prov 或去掉 --type 再组。")
     if plan.get("relaxed"):
-        ry = plan.get("relaxed_years") or {}
-        years_txt = "、".join(f"{y} 年 {n} 题" for y, n in sorted(ry.items(), reverse=True))
-        lines.append(f"- **提示**：年份配额不足以凑满，已从其他年份补 {plan['relaxed']} 题"
-                     f"（{years_txt}）；如需严格限年可减少 --count 或放宽 --years。")
+        lines.append(f"- **提示**：{relaxed_text(plan)}")
     for mod, got, want in plan.get("quota_short") or []:
         lines.append(f"- **提示**：{quota_short_text(mod, got, want)}；"
                      f"可用 {got} 题 / 配额 {want} 题，"
@@ -613,7 +629,7 @@ def print_dry_run(picked, plan, filters_desc):
     print("质量过滤：" + (plan.get("filter_desc") or "开启"))
     print(f"建议用时：{time_text(picked)}")
     if plan.get("relaxed"):
-        print(f"注意：年份配额不足以凑满，补入 {plan['relaxed']} 题")
+        print(relaxed_text(plan, short=True))
     for mod, got, want in plan.get("quota_short") or []:
         print(quota_short_text(mod, got, want))
 
@@ -876,7 +892,7 @@ def main(argv=None):
         print(f"⚠ 配额压缩：--count {quota_cap} 小于配额之和 {quota_sum}，已按比例压缩。",
               file=sys.stderr)
     if notes["relaxed"]:
-        print(f"注意：年份配额不足以凑满，已从其他年份补 {notes['relaxed']} 题。", file=sys.stderr)
+        print(relaxed_text(plan, short=True) + "。", file=sys.stderr)
     for mod, got, want in notes["quota_short"]:
         print(quota_short_text(mod, got, want), file=sys.stderr)
     if len(picked) < target:

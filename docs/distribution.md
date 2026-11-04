@@ -4,11 +4,13 @@
 
 | | lite | full |
 |---|---|---|
-| 体积（zip / 解压） | **6.6 MB / 18.3 MB** | 41.0 MB / 76.0 MB |
-| 内容 | 全部 Markdown 题库（考点 48 + 原卷 98 + 申论 106 + 分片 127）、`data/search-index.tsv`、`stats.json`、`scripts/search.py` `selfcheck.py` | lite 全部内容 + `data/*.jsonl` 题库 + `references/images/` 3 536 张配图 + 组卷/错题本/评测/CI/流水线 |
+| 体积（zip / 解压） | **6.6 MB / 约 18 MB** | 41.0 MB / 106.6 MB |
+| 内容 | 全部 Markdown 题库（考点 48 + 原卷 98 + 申论 106 + 分片 128）、`data/search-index.tsv`、`stats.json`、`scripts/search.py` `selfcheck.py` | lite 全部内容 + `data/*.jsonl` 题库 + `references/images/` 3 536 张配图 + 组卷/错题本/评测/CI/流水线 |
 | 检索方式 | 打开 Markdown 直接读；或按 `search-index.tsv` 文本匹配拿 `id` 再回原卷 | `scripts/search.py` 全功能（考点/子考点/关键词/模糊/难度/主题/折叠） |
 | 图形题与图表材料 | **无配图**（Markdown 中的配图引用已在打包时移除） | 完整配图 |
 | 适用 | 豆包等宿主上传（体积友好）、只需"查真题 + 看答案" | 本地刷题、组卷、错题本、评测、二次开发 |
+
+> 体积口径：`dist/` 目前只有 **v1.4.0** 的打包产物（full zip **41.0 MB**、lite zip **6.6 MB**，解压 76.1 / 18.3 MB），见 `dist/MANIFEST-v1.4.0.txt`；**v1.8.0 尚未重新打包**，full 解压后体积以当前工作树实测 **106.6 MB** 为准（数据与配图在 v1.4.0 之后有增补）。数字随数据修订变化，以 `docs/stats-snapshot.md` 为准。
 
 ## 一、自己打包
 
@@ -48,12 +50,12 @@ git push origin main --tags
 
 | 部分 | 约 |
 |---|---|
-| `references/images/`（3 536 张 JPEG） | 31 MB |
-| `references/juan/`（98 套行测原卷） | 6 MB |
-| `references/shenlun/`（106 套申论原卷） | 2 MB |
-| `references/kaodian/` + 分片 | 1.3 MB |
-| `data/xingce.jsonl` | 16 MB |
-| `data/shenlun.jsonl` | 8 MB |
-| `data/search-index.tsv` | 3 MB |
+| `references/images/`（3 536 张 JPEG） | 55.4 MB |
+| `references/juan/`（98 套行测原卷） | 6.8 MB |
+| `references/shenlun/`（106 套申论原卷） | 3.6 MB |
+| `references/kaodian/` + 分片 | 6.0 MB |
+| `data/xingce.jsonl` | 17.4 MB |
+| `data/shenlun.jsonl` | 9.3 MB |
+| `data/search-index.tsv` | 2.7 MB |
 
-要更小可以：删 `references/images/`（-31MB）、或把 `data/*.jsonl` 换成按省分片（`xingce-gk/gd/hb.jsonl`）。
+要更小可以：删 `references/images/`（-55.4MB）、或把 `data/*.jsonl` 换成按省分片（`xingce-gk/gd/hb.jsonl`）。

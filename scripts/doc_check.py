@@ -536,6 +536,7 @@ def check_snapshot(m):
 RULES = [
     # ---------------- SKILL.md ----------------
     ("SKILL.md", r"^version: (?P<g0>[\d.]+)$", [(0, "version")]),
+    ("SKILL.md", r"make_release\.py --version (?P<g0>[\d.]+)", [(0, "version")]),
     ("SKILL.md", r"行测 (?P<g0>[\d ]+) 题 \+ 申论 (?P<g1>\d+) 题", [(0, "xingce_total"), (1, "shenlun_total")]),
     ("SKILL.md", r"1 行 1 题，(?P<g0>[\d ]+) 题", [(0, "xingce_total")]),
     ("SKILL.md", r"1 行 1 小题，(?P<g0>\d+) 题（(?P<g1>\d+) 题有参考答案，(?P<g2>\d+) 题见原卷）",

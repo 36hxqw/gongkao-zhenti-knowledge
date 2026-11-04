@@ -172,7 +172,7 @@ python scripts/paper.py --module 资料分析 --count 20 --prov 国考 --max-per
 
 # ⑬ 错题本 / 打包
 python scripts/wrongbook.py add --id GK-2024-fs-X112 --reason 技巧不熟
-python scripts/make_release.py --version 1.7.0
+python scripts/make_release.py --version 1.8.0
 ```
 
 **多值与分组参数速查**

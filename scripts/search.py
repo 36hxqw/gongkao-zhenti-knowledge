@@ -50,6 +50,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 from itertools import combinations
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -255,6 +256,23 @@ def norm(s):
     return (s or "").strip().lower()
 
 
+# ---- v1.11：关键词全半角/标点归一化 -----------------------------------------
+# 检索前对关键词与检索字段统一 NFKC，并去掉中英文标点与空白：
+#   --kw 《星星之火，可以燎原》  与  --kw 星星之火,可以燎原  视为同一个词。
+# 只影响匹配，不改变展示与 AND 语义。
+KW_PUNCT = "《》〈〉「」『』,，。．；;：:“”‘’\"'（）()【】[]、"
+
+
+def norm_text(s):
+    """NFKC + 去标点/空白；关键词与 _hay 匹配前都过这一层。"""
+    s = unicodedata.normalize("NFKC", str(s or ""))
+    return "".join(ch for ch in s if ch not in KW_PUNCT and not ch.isspace())
+
+
+def has_kw_punct(kws):
+    """原关键词是否含全半角/标点/空白（用于 0 命中时的归一化重试提示）。"""
+    return any(ch in KW_PUNCT or ch.isspace() for w in kws or [] for ch in w)
+
 
 # 同义词组：fuzzy 模式下任一说法命中即算命中（解决“换个说法就搜不到”）
 SYNONYM_GROUPS = [
@@ -302,11 +320,14 @@ def fuzzy_hit(kw, hay):
     覆盖率必须「高于」0.75：5 字词拆成 4 个 2-gram，覆盖 3 个（0.75）时往往只是
     共享「生产/产力」这类常用词，收紧后「新质生产力」不再误命中仅谈「生产力」的题。
     """
-    hay_ns = _nospace(hay)
-    for v in _EXPAND.get(kw, {kw}):
-        if v in hay or _nospace(v) in hay_ns:
+    q = norm_text(kw).lower()
+    if not q:
+        return False
+    hay_ns = norm_text(hay).lower()
+    for v in _EXPAND.get(q, {q}):
+        v = norm_text(v).lower()
+        if v and v in hay_ns:
             return True
-    q = _nospace(kw)
     a = _bigrams(q)
     if not a:
         return q in hay_ns
@@ -327,8 +348,8 @@ def _nospace(s):
     return RE_WS.sub("", s or "")
 
 def _hay(rec):
-    """一条记录的可检索全文（--kw AND 检索口径）。"""
-    return " ".join([
+    """一条记录的可检索全文（--kw AND 检索口径；v1.11 起统一 NFKC）。"""
+    raw = " ".join([
         rec.get("stem", ""), rec.get("ctx", ""), rec.get("material", ""),
         " ".join((rec.get("opts") or {}).values()),
         rec.get("expl", ""), rec.get("ans", "") or "",
@@ -336,19 +357,25 @@ def _hay(rec):
         rec.get("type", ""), rec.get("module", ""), rec.get("code", ""), rec.get("sub", ""),
         " ".join(rec.get("theme") or []),
     ])
+    return unicodedata.normalize("NFKC", raw)
 
 
 def match_keywords(rec, kws):
-    raw = _hay(rec)
-    hay, hay_ns = raw.lower(), _nospace(raw).lower()
-    return all(k.lower() in hay or _nospace(k).lower() in hay_ns for k in kws)
+    """关键词 AND：关键词与检索字段都做 NFKC + 去标点/空白后比子串。"""
+    needles = [norm_text(k).lower() for k in kws]
+    if not needles or any(not n for n in needles):
+        return False
+    hay = norm_text(_hay(rec)).lower()
+    return all(n in hay for n in needles)
 
 
 def match_any(rec, kws):
     """任一词命中（OR）：字段集合与 match_keywords 完全一致（复用 _hay）。"""
-    raw = _hay(rec)
-    hay, hay_ns = raw.lower(), _nospace(raw).lower()
-    return any(k.lower() in hay or _nospace(k).lower() in hay_ns for k in kws)
+    needles = [n for n in (norm_text(k).lower() for k in kws) if n]
+    if not needles:
+        return False
+    hay = norm_text(_hay(rec)).lower()
+    return any(n in hay for n in needles)
 
 
 def expand_codes(words):
@@ -543,12 +570,12 @@ def _print_id_miss(qid, recs):
 
 
 def _term_df(kws, hays):
-    """每个词在全库中的文档出现次数（越泛次数越多）。"""
-    norms = [_nospace(h) for h in hays]
+    """每个词在全库中的文档出现次数（越泛次数越多）；v1.11 起按归一化口径计。"""
+    norms = [norm_text(h).lower() for h in hays]
     counts = {}
     for word in kws:
-        w, wns = word.lower(), _nospace(word).lower()
-        counts[word] = sum(1 for h, hn in zip(hays, norms) if w in h or wns in hn)
+        w = norm_text(word).lower()
+        counts[word] = sum(1 for hn in norms if w and w in hn)
     return counts
 
 
@@ -664,7 +691,10 @@ def main(argv=None):
     ap.add_argument("--module", nargs="+", metavar="模块", help="模块：资料分析/数量关系/言语理解/判断推理/常识判断/申论"
                     "（可多个：--module 资料分析 判断推理）")
     ap.add_argument("--type", dest="type_", help="题型名，如 图形推理")
-    ap.add_argument("--sub", help="子考点名（三级，知识点），如 两期比重差 / 翻译推理 / 最不利构造")
+    ap.add_argument("--sub", help="子考点名（精确匹配，如 两期比重差 / 翻译推理 / 最不利构造；"
+                                  "0 命中时可用 --sub-like）")
+    ap.add_argument("--sub-like", dest="sub_like",
+                    help="子考点名（家族/子串匹配，如 比重 / 待细分）")
     ap.add_argument("--form", nargs="+", metavar="形式", default=[],
                     help="设问形态 / 空数（可多个，OR）：选正确项/选错误项/判断个数/排序与图示/"
                          "一空/两空/三空及以上")
@@ -690,6 +720,11 @@ def main(argv=None):
                                                    "可选：" + ",".join(FIELD_NAMES))
     args = ap.parse_args(argv)
     _soft_stdio()
+
+    if args.sub and args.sub_like:
+        print("--sub 与 --sub-like 不能同时使用：--sub 为精确匹配，--sub-like 为家族/子串匹配。",
+              file=sys.stderr)
+        return 2
 
     if args.fields:
         try:
@@ -767,7 +802,11 @@ def main(argv=None):
     if args.type_:
         sel = [r for r in sel if args.type_ in r["type"]]
     if args.sub:
-        sel = [r for r in sel if args.sub in (r.get("sub") or "")]
+        want_sub = args.sub.strip()
+        sel = [r for r in sel if (r.get("sub") or "").strip() == want_sub]
+    elif args.sub_like:
+        want_sub = args.sub_like.strip()
+        sel = [r for r in sel if want_sub in (r.get("sub") or "")]
     if forms:
         sel = [r for r in sel if (r.get("form") or "") in forms]
     if args.diff:
@@ -814,11 +853,30 @@ def main(argv=None):
     sel.sort(key=lambda r: (-(r["year"] or 0), order.get(r["prov"], 9),
                             _rec_num(r), r["id"]))
 
+    # --sub 精确 / --sub-like 家族匹配（v1.11）：
+    #   精确 0 命中 → 提示换 --sub-like；--sub-like 跨模块 → 打印模块分布并建议 --module。
+    sub_match = "exact" if args.sub else ("like" if args.sub_like else None)
+    if args.sub and not sel:
+        print("提示：精确匹配无结果，可用 --sub-like（家族匹配）或 --module 限定", file=sys.stderr)
+    if args.sub_like and sel:
+        mod_dist = {}
+        for r in sel:
+            mod = r.get("module") or "未知"
+            mod_dist[mod] = mod_dist.get(mod, 0) + 1
+        if len(mod_dist) > 1:
+            dist = "、".join(f"{m} {n}" for m, n in sorted(mod_dist.items(), key=lambda kv: -kv[1]))
+            stream = sys.stderr if (args.json or args.fields) else sys.stdout
+            print(f"提示：--sub-like 命中跨 {len(mod_dist)} 个模块（{dist}）；可用 --module 限定",
+                  file=stream)
+
     # --sub 命中兜底标签（「XX（待细分）」/「XX（综合）」）时点明「未细分」并给替代检索方式。
     # --json / --fields 时走 stderr，保证 stdout 仍是纯 JSON / 纯字段列。
-    if args.sub and any(has_undivided_sub(r) for r in sel):
+    if (args.sub or args.sub_like) and any(has_undivided_sub(r) for r in sel):
         hint_stream = sys.stderr if (args.json or args.fields) else sys.stdout
         print(f"提示：{SUB_UNDIVIDED_HINT}", file=hint_stream)
+
+    if not sel and args.kw and has_kw_punct(args.kw):
+        print("可能是全半角/标点写法不同，已按归一化重试", file=sys.stderr)
 
     if args.json:
         if args.group_by:
@@ -833,6 +891,8 @@ def main(argv=None):
             item = dict(rec)
             if rec["id"] in fuzzy_ids:
                 item["fuzzy"] = True
+            if sub_match:
+                item["sub_match"] = sub_match
             out_recs.append(item)
         print(json.dumps(out_recs, ensure_ascii=False, indent=1))
         if dropped:

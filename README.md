@@ -36,7 +36,7 @@
 | 维度 | 数值 |
 |---|---|
 | 行测试卷 | 98 套（国考 45 / 广东 35 / 湖北 18） |
-| 行测题目 | 11 393 题（**有答案 8 478 题**；同题变体 1 091 条已折叠，折叠后 10 302 题） |
+| 行测题目 | 11 393 题（**有答案 8 478 题**；同题变体 1 095 条已折叠，折叠后 10 298 题） |
 | 申论试卷 | 106 套 |
 | 申论小题 | 419 题（**287** 题有参考答案，**132** 题见原卷） |
 | 考点 | 48 个有题考点（`--list-kaodian` 合计 11 812 题），覆盖 6 大模块；另有 3 个零题编码（ZL-PULL / YY-YJXH / YY-PZYD，无文件）；三级子考点 211 个标签（图形推理新增折纸盒 / 三视图 / 截面 / 立体拼合 4 个二级子考点） |
@@ -152,7 +152,7 @@ python scripts/search.py --diff 4-5 --module 资料分析
 python scripts/search.py --theme 基层治理 --limit 5
 
 # 打包发行版（lite 6.6MB / full 41MB）
-python scripts/make_release.py --version 1.9.0
+python scripts/make_release.py --version 1.11.0
 
 # 列出全部考点与题量
 python scripts/search.py --list-kaodian

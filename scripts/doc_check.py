@@ -323,6 +323,60 @@ def _sub_tags(tax_body):
 
 
 # --------------------------------------------------------------------------- #
+# 版本号一致性（v1.11）：skill.json / SKILL.md frontmatter / CHANGELOG 首条
+# --------------------------------------------------------------------------- #
+VERSION_RULES = (
+    ("skill.json", re.compile(r'"version"\s*:\s*"([^"]+)"')),
+    ("SKILL.md", re.compile(r"(?m)^version:\s*([^\s#]+)\s*$")),
+    ("CHANGELOG.md", re.compile(r"(?m)^##\s*v(\d+\.\d+\.\d+)")),
+)
+
+
+def read_versions(texts=None):
+    """返回 [(文件, 版本, 行号, 起列, 止列)]；texts 可覆盖磁盘读取（测试用）。"""
+    out = []
+    for fname, rx in VERSION_RULES:
+        if texts is not None:
+            text = texts.get(fname)
+        else:
+            path = os.path.join(BASE, fname)
+            text = _read_text(path) if os.path.exists(path) else None
+        if text is None:
+            continue
+        mo = rx.search(text)
+        if not mo:
+            continue
+        out.append((fname, mo.group(1), text[:mo.start()].count("\n") + 1,
+                    mo.start(1), mo.end(1)))
+    return out
+
+
+def check_version(texts=None):
+    """三项版本号必须相同；缺失或漂移时返回一条「版本号不一致」mismatch。"""
+    found = read_versions(texts)
+    if len(found) != len(VERSION_RULES):
+        seen = {f for f, *_ in found}
+        missing = [f for f, _ in VERSION_RULES if f not in seen]
+        return [{"file": " / ".join(missing), "line": 0, "col": None, "end": None,
+                 "name": "版本号不一致", "key": "version",
+                 "doc": "未读到版本号",
+                 "actual": "skill.json / SKILL.md / CHANGELOG.md 都要能解析出版本号",
+                 "fixable": False}]
+    values = [v for _, v, *_ in found]
+    if len(set(values)) == 1:
+        return []
+    summary = "当前 " + " / ".join(f"{f}={v}" for f, v, *_ in found)
+    return [{"file": " / ".join(f for f, *_ in found), "line": 0, "col": None, "end": None,
+             "name": "版本号不一致", "key": "version",
+             "doc": summary, "actual": "三者必须相同", "fixable": False}]
+
+
+def _read_text(path):
+    with open(path, encoding="utf-8-sig") as f:
+        return f.read()
+
+
+# --------------------------------------------------------------------------- #
 # 指标元信息：格式 + 人类可读名
 # --------------------------------------------------------------------------- #
 KIND = {}
@@ -854,6 +908,7 @@ def main(argv=None):
 
     m = compute()
     mismatches, notes = check_snapshot(m)
+    mismatches += check_version()
     mismatches += check_docs(m)
     mismatches += check_paper_table(m)
 

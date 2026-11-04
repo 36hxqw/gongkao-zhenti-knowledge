@@ -450,6 +450,95 @@ def main():
     check("未细分" not in run("--sub", "两期比重差", "--limit", "1").stdout,
           "细分到位的 --sub 不出现未细分提示")
 
+    print("[30] --kw 全半角/标点归一化（v1.11）")
+    p1 = run("--kw", "《星星之火，可以燎原》", "--xingce", "--limit", "1")
+    p2 = run("--kw", "星星之火,可以燎原", "--xingce", "--limit", "1")
+    n1, n2 = hit_total(p1.stdout), hit_total(p2.stdout)
+    check(p1.returncode == 0 and n1 > 0, f"书名号+中文逗号关键词能命中（{n1} 条）")
+    check(n1 == n2, f"全角/半角/标点写法命中数一致（{n1} vs {n2}）")
+    check(search_mod.match_keywords({"stem": "《星星之火，可以燎原》"},
+                                    ["星星之火,可以燎原"]),
+          "NFKC：检索字段带书名号、关键词用半角逗号也能匹配")
+    check(search_mod.has_kw_punct(["《星星之火，可以燎原》"]),
+          "识别关键词含标点/全半角字符")
+    p3 = run("--kw", "《不存在的词，测试》", expect_ok=False)
+    check(p3.returncode == 2
+          and "可能是全半角/标点写法不同，已按归一化重试" in p3.stderr,
+          "0 命中且原词含标点时提示已按归一化重试")
+
+    print("[31] --sub 精确 / --sub-like 家族匹配（v1.11）")
+    exact = json.loads(run("--sub", "两期比重差", "--json", "--limit", "2000").stdout)
+    check(bool(exact) and all(r.get("sub") == "两期比重差" for r in exact),
+          f"--sub 精确只命中 sub=两期比重差 的记录（{len(exact)} 条）")
+    check(bool(exact) and all(r.get("sub_match") == "exact" for r in exact),
+          '--json 输出 sub_match="exact"')
+    like = json.loads(run("--sub-like", "比重", "--json", "--limit", "2000").stdout)
+    check(bool(like) and all("比重" in (r.get("sub") or "") for r in like),
+          "--sub-like 保留家族/子串匹配")
+    check(len(like) > len(exact), f"--sub-like 命中面大于精确（{len(like)} > {len(exact)}）")
+    check(any(r.get("sub") == "两期比重差" for r in like),
+          "--sub-like 比重 仍带出家族内的两期比重差")
+    check(bool(like) and all(r.get("sub_match") == "like" for r in like),
+          '--json 输出 sub_match="like"')
+    exact_bili = json.loads(run("--sub", "比重", "--json", "--limit", "2000").stdout)
+    check(bool(exact_bili) and all(r.get("sub") == "比重" for r in exact_bili),
+          "数据中确以「比重」为 sub 的队伍按精确命中，不混入两期比重差/现期比重")
+    p = run("--sub", "待细分", expect_ok=False)
+    check(p.returncode == 2 and "精确匹配无结果" in p.stderr
+          and "--sub-like" in p.stderr,
+          "--sub 0 命中提示 --sub-like（家族匹配）或 --module 限定")
+    cross = run("--sub-like", "待细分", "--limit", "1")
+    check("跨" in cross.stdout and "可用 --module 限定" in cross.stdout,
+          "--sub-like 跨模块时打印模块分布并提示 --module")
+    scoped = json.loads(run("--sub-like", "待细分", "--module", "判断推理",
+                            "--json", "--limit", "2000").stdout)
+    check(bool(scoped) and all(r.get("module") == "判断推理" and "待细分" in (r.get("sub") or "")
+                              for r in scoped),
+          f"--sub-like 待细分 --module 判断推理 只出判断推理（{len(scoped)} 条）")
+
+    print("[32] 版本号一致性校验（v1.11）")
+    sys.path.insert(0, os.path.join(BASE, "scripts"))
+    import doc_check as doc_check_mod
+    consistent = {
+        "skill.json": '{"name": "x", "version": "9.9.9"}',
+        "SKILL.md": "---\nname: x\nversion: 9.9.9\n---\n",
+        "CHANGELOG.md": "# CHANGELOG\n\n## v9.9.9（示例）\n",
+    }
+    check(doc_check_mod.check_version(consistent) == [],
+          "三项版本号一致时不报错")
+    for fname, text in (
+        ("skill.json", '{"version": "9.9.8"}'),
+        ("SKILL.md", "---\nversion: 9.9.8\n---\n"),
+        ("CHANGELOG.md", "## v9.9.8\n"),
+    ):
+        bad = dict(consistent)
+        bad[fname] = text
+        got = doc_check_mod.check_version(bad)
+        check(len(got) == 1 and got[0]["name"] == "版本号不一致",
+              f"故意改 {fname} 一处 → 报版本号不一致")
+    versions = [v for _, v, *_ in doc_check_mod.read_versions()]
+    p = subprocess.run([PY, os.path.join(BASE, "scripts", "doc_check.py")],
+                       capture_output=True, text=True, encoding="utf-8",
+                       env=child_env)
+    combined = p.stdout + p.stderr
+    if len(set(versions)) == 1:
+        check("版本号不一致" not in combined,
+              "仓库三项版本一致时不报版本号不一致")
+    else:
+        check(p.returncode == 1 and "版本号不一致" in combined,
+              f"仓库版本不一致时 doc_check exit 1（当前 {versions}）")
+
+    print("[33] sub 与解析自述一致性抽检（v1.11）")
+    p = subprocess.run([PY, os.path.join(BASE, "scripts", "selfcheck.py")],
+                       capture_output=True, text=True, encoding="utf-8",
+                       env=child_env)
+    check(p.returncode == 0, "selfcheck 仍通过（抽检未超阈值）")
+    mo = re.search(r"sub_expl_mismatch (\d+) 条（([\d.]+)%", p.stdout)
+    check(mo is not None, "selfcheck 输出 sub_expl_mismatch 计数与百分比")
+    if mo:
+        check(int(mo.group(1)) > 0 and float(mo.group(2)) <= 25.0,
+              f"sub_expl_mismatch={mo.group(1)} 条（{mo.group(2)}%）≤ 25%")
+
     print()
     if FAILED:
         print(f"❌ {len(FAILED)} 项失败：")

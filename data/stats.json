@@ -51,11 +51,11 @@
    "YY-LJTK": 1472,
    "PD-LJ": 1183,
    "YY-ZXJL": 1040,
-   "PD-TX": 843,
    "CS-SH": 838,
+   "PD-TX": 821,
    "ZL-COMP": 792,
    "PD-LB": 698,
-   "PD-DY": 538,
+   "PD-DY": 560,
    "SL-OT": 421,
    "CS-ZZ": 293,
    "SL-SZ": 289,
@@ -140,9 +140,9 @@
   "by_code": {
    "SN-DY": 159,
    "SN-DZW": 74,
-   "SN-DC": 69,
+   "SN-DC": 72,
    "SN-ZH": 61,
-   "SN-GW": 56
+   "SN-GW": 53
   }
  },
  "papers": 98,

@@ -749,11 +749,11 @@ def check_docs(m, texts=None):
                             continue
                         if KIND.get(key) == "str":
                             if text != str(expected):
-                                out.append(_mk(fname, i + 1, mo.span(gi), key, text, expected))
+                                out.append(_mk(fname, i + 1, mo.span("g%d" % gi), key, text, expected))
                             continue
                         doc_num = parse_num(text)
                         if doc_num is not None and not same(key, doc_num, expected):
-                            out.append(_mk(fname, i + 1, mo.span(gi), key, text, expected))
+                            out.append(_mk(fname, i + 1, mo.span("g%d" % gi), key, text, expected))
     return out
 
 

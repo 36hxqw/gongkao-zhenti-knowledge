@@ -4,13 +4,13 @@
 
 | | lite | full |
 |---|---|---|
-| 体积（zip / 解压） | **6.6 MB / 约 18 MB** | 41.0 MB / 106.6 MB |
+| 体积（zip / 解压） | **6.6 MB / 约 18 MB** | 41.0 MB / 106.8 MB |
 | 内容 | 全部 Markdown 题库（考点 48 + 原卷 98 + 申论 106 + 分片 128）、`data/search-index.tsv`、`stats.json`、`scripts/search.py` `selfcheck.py` | lite 全部内容 + `data/*.jsonl` 题库 + `references/images/` 3 536 张配图 + 组卷/错题本/评测/CI/流水线 |
-| 检索方式 | 打开 Markdown 直接读；或按 `search-index.tsv` 文本匹配拿 `id` 再回原卷 | `scripts/search.py` 全功能（考点/子考点/关键词/模糊/难度/主题/折叠） |
+| 检索方式 | 打开 Markdown 直接读；或按 `search-index.tsv` 文本匹配拿 `id` 再回原卷 | `scripts/search.py` 全功能（考点/子考点/形态 `--form`/关键词/模糊/难度/主题/折叠） |
 | 图形题与图表材料 | **无配图**（Markdown 中的配图引用已在打包时移除） | 完整配图 |
 | 适用 | 豆包等宿主上传（体积友好）、只需"查真题 + 看答案" | 本地刷题、组卷、错题本、评测、二次开发 |
 
-> 体积口径：`dist/` 目前只有 **v1.4.0** 的打包产物（full zip **41.0 MB**、lite zip **6.6 MB**，解压 76.1 / 18.3 MB），见 `dist/MANIFEST-v1.4.0.txt`；**v1.8.0 尚未重新打包**，full 解压后体积以当前工作树实测 **106.6 MB** 为准（数据与配图在 v1.4.0 之后有增补）。数字随数据修订变化，以 `docs/stats-snapshot.md` 为准。
+> 体积口径：`dist/` 目前只有 **v1.4.0** 的打包产物（full zip **41.0 MB**、lite zip **6.6 MB**，解压 76.1 / 18.3 MB），见 `dist/MANIFEST-v1.4.0.txt`；**v1.9.0 尚未重新打包**，full 解压后体积以当前工作树实测 **106.8 MB** 为准（数据与配图在 v1.4.0 之后有增补）。数字随数据修订变化，以 `docs/stats-snapshot.md` 为准。
 
 ## 一、自己打包
 

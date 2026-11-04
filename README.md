@@ -19,7 +19,7 @@
 | 痛点 | 本库的做法 |
 |---|---|
 | 想按考点刷真题，但题库和考点体系对不上 | 每题都带 `模块/题型/考点编码`，考点命名 100% 沿用花生十三体系（不自定义）；另有 **197 个三级子考点**（两期比重差、折纸盒、三视图、最不利构造…） |
-| 只记得几个零散词，找不到题 | `search.py` 支持多关键词 AND/OR、`--sub` 子考点、`--fuzzy` 同义词+2-gram 模糊匹配，也可纯文本 grep |
+| 只记得几个零散词，找不到题 | `search.py` 支持多关键词 AND/OR、`--sub` 子考点、`--form` 设问形态/空数、`--fuzzy` 同义词+2-gram 模糊匹配，也可纯文本 grep |
 | 需要"原题 + 答案 + 解析"一起给 | 每题保留题干、A–D 选项、正确答案、原解析节选、来源文件 |
 | 同一道题在国考三卷、多年重复出现 | 同题折叠：默认只出主记录，并告诉你"这题还考过哪几年" |
 | 图形推理、资料分析图表题看不到图 | 3 536 张按题号自动裁切的原题配图，Markdown 内嵌 + 检索结果给出路径 |
@@ -39,7 +39,7 @@
 | 行测题目 | 11 393 题（**有答案 8 478 题**；同题变体 1 091 条已折叠，折叠后 10 302 题） |
 | 申论试卷 | 106 套 |
 | 申论小题 | 419 题（**287** 题有参考答案，**132** 题见原卷） |
-| 考点 | 48 个有题考点（`--list-kaodian` 合计 11 812 题），覆盖 6 大模块；另有 3 个零题编码（ZL-PULL / YY-YJXH / YY-PZYD，无文件）；三级子考点 197 个标签（图形推理新增折纸盒 / 三视图 / 截面 / 立体拼合 4 个二级子考点） |
+| 考点 | 48 个有题考点（`--list-kaodian` 合计 11 812 题），覆盖 6 大模块；另有 3 个零题编码（ZL-PULL / YY-YJXH / YY-PZYD，无文件）；三级子考点 211 个标签（图形推理新增折纸盒 / 三视图 / 截面 / 立体拼合 4 个二级子考点） |
 | 质量评测 | 规则集 189 条 + **人工盲标集 154 条**（3 个子代理盲标、主代理抽检 14 条一致率 100%）；模块 98.0% / 考点 82.2% |
 | 原题配图 | 3 536 个文件（约 55.4MB）：题目图 3 148 + 材料图 225（表格/图表独立裁切、同组共享；按记录计 1 455 条）+ 跨页续图 163 |
 | 难度 / 主题 | 11 393 + 419 题全部 1–5 难度分档；申论 419 题带主题标签（15 类） |
@@ -126,9 +126,14 @@ python scripts/search.py --module 资料分析 --group-by 年份 --limit 6
 # 按 ID 取完整题目（含解析；同题变体 id 也能命中，会先告诉你主记录）
 python scripts/search.py --id GK-2025-fs-X010 --full
 
-# 三级子考点（最精准）：两期比重差 / 最不利构造 / 翻译推理 / 折纸盒 / 三视图 …
+# 三级子考点（知识点，最精准）：两期比重差 / 最不利构造 / 翻译推理 / 折纸盒 / 三视图 …
 python scripts/search.py --sub 两期比重差 --prov 国考
 python scripts/search.py --sub 折纸盒 --full --limit 3     # 图形推理·立体图形二级子考点
+
+# 按设问形态 / 空数（form，可与上面任一条件叠加）：选正确项/选错误项/判断个数/排序与图示/一空/两空/三空及以上
+python scripts/search.py --form 两空 --limit 5
+python scripts/search.py --form 一空 两空 --module 言语理解 --limit 3
+python scripts/search.py --form 两空 --fields id,form,sub   # 字段裁剪，便于脚本消费
 
 # 模糊检索：同义词 + 2-gram，换说法/错字也能中
 python scripts/search.py --kw 占比 --kw 提高 --fuzzy
@@ -147,7 +152,7 @@ python scripts/search.py --diff 4-5 --module 资料分析
 python scripts/search.py --theme 基层治理 --limit 5
 
 # 打包发行版（lite 6.6MB / full 41MB）
-python scripts/make_release.py --version 1.8.0
+python scripts/make_release.py --version 1.9.0
 
 # 列出全部考点与题量
 python scripts/search.py --list-kaodian

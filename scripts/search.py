@@ -14,6 +14,11 @@
     # 任一词命中（OR）
     python scripts/search.py --any 新质生产力 低空经济 未来产业 --limit 8
 
+    # 按设问形态 / 空数检索（可多值 OR）
+    # 取值：选正确项 / 选错误项 / 判断个数 / 排序与图示 / 一空 / 两空 / 三空及以上
+    python scripts/search.py --form 两空 --limit 5
+    python scripts/search.py --form 一空 两空 --module 言语理解
+
     # 年份 + 模块 + 只要题干摘要
     python scripts/search.py --year 2024 --module 判断推理
 
@@ -32,6 +37,7 @@
 
     # 只输出指定字段（制表符分隔，便于 cut/awk；仅文本输出生效）
     python scripts/search.py --kw 黑土地 --fields id,ans,sub
+    python scripts/search.py --form 两空 --fields id,form,sub
 
     # 列出全部考点及题量（按 code 单键聚合；--json 输出数组）
     python scripts/search.py --list-kaodian
@@ -138,7 +144,20 @@ STEM_FLAG_REASON = {
 # 完全无答案且无 ans_note 时的统一文案（不再写「扫描版」）
 NO_ANSWER_TEXT = "该题答案缺失，见原卷"
 
+# 解析过短（< 10 字，常见是只剩答案字母）时的统一文案，与 paper.py 的答案页口径一致
+EXPL_MISSING_TEXT = "原解析缺失，仅答案"
+
+# 选项本身是图片（fig=true 且 opts 为空）时的选项文案 + 配图缺失时的兜底提示
+FIG_OPTS_TEXT = "选项为图形，见图"
+FIG_IMG_MISSING = "配图文件缺失，需回原卷看图"
+
+# --sub 命中兜底子考点（「XX（待细分）」/「XX（综合）」）时的提示
+SUB_UNDIVIDED_HINT = "该考点未细分，建议改用 --kw / --fuzzy / --form"
+
 GROUP_BY_CHOICES = ("年份", "考点", "省份", "年份+考点")
+
+# form 字段的 7 个取值（设问形态 / 空数）；null 表示不适用（普通四选一计算题）
+FORM_CHOICES = ("选正确项", "选错误项", "判断个数", "排序与图示", "一空", "两空", "三空及以上")
 
 
 class _Parser(argparse.ArgumentParser):
@@ -201,6 +220,27 @@ def answer_text(rec):
     if note:
         return note
     return NO_ANSWER_TEXT
+
+
+def has_undivided_sub(rec):
+    """子考点是否落在兜底标签上：「XX（待细分）」或「XX（综合）」。
+
+    这两类标签只说明「判不出更细的知识点」，用户拿它当检索条件时命中集合会很杂，
+    输出里要提示改用 --kw / --fuzzy / --form（见 `main()` 的 SUB_UNDIVIDED_HINT）。
+    """
+    sub = rec.get("sub") or ""
+    return "待细分" in sub or "综合" in sub
+
+
+def expl_text(rec):
+    """解析展示口径：空或 < 10 字（常见是只剩答案字母）时统一写「原解析缺失，仅答案」。"""
+    expl = (rec.get("expl") or "").strip()
+    return expl if len(expl) >= 10 else EXPL_MISSING_TEXT
+
+
+def has_short_expl(rec):
+    """解析是否缺失/过短（此时 expl_text 给的是统一文案而不是原文）。"""
+    return len((rec.get("expl") or "").strip()) < 10
 
 
 def _read_jsonl(name):
@@ -326,6 +366,8 @@ def fmt(rec, full=False, show_expl=True, fuzzy=False):
     head += f" 第 {num} 题　| {rec['module']}·{rec['type']}（{rec['code']}）"
     if rec.get("sub"):
         head += f"　子考点：{rec['sub']}"
+    if rec.get("form"):
+        head += f"　形式：{rec['form']}"
     if rec.get("diff"):
         head += f"　难度：{'★' * rec['diff']}{'☆' * (5 - rec['diff'])}"
     if rec.get("theme"):
@@ -344,6 +386,9 @@ def fmt(rec, full=False, show_expl=True, fuzzy=False):
     if opts:
         line = "  " + "　".join(f"{k}. {v}" for k, v in opts.items())
         out.append(line)
+    elif rec.get("fig"):
+        # 图选项题：opts 为空不是数据缺失，选项本身就是图片
+        out.append(f"  选项：{FIG_OPTS_TEXT}")
     img_dir = os.path.join(BASE, "references", "images")
     mat = rec.get("mat_img")
     if mat and os.path.exists(os.path.join(img_dir, mat)):
@@ -351,15 +396,22 @@ def fmt(rec, full=False, show_expl=True, fuzzy=False):
     img = os.path.join(img_dir, rec["id"] + ".jpg")
     if os.path.exists(img):
         out.append(f"  配图：references/images/{rec['id']}.jpg")
+    elif rec.get("fig"):
+        out.append(f"  配图：references/images/{rec['id']}.jpg（{FIG_IMG_MISSING}）")
     if rec.get("dup_n", 1) > 1:
         out.append(f"  （同题另有 {rec['dup_n'] - 1} 个变体，--all-variants 展开）")
     out.append(f"  【答案】{answer_text(rec)}")
     note = (rec.get("dup_note") or "").strip()
     if note:
         out.append(f"  说明：{note}")
-    if show_expl and rec.get("expl"):
-        expl = rec["expl"] if full else rec["expl"][:220] + ("…" if len(rec["expl"]) > 220 else "")
-        out.append(f"  【解析】{expl}")
+    if show_expl and not str(rec.get("code", "")).startswith("SN"):
+        # 申论没有「解析」这一层（答案在卷内「参考答案原文」，见 SKILL §5.2），不打印解析行
+        if has_short_expl(rec):
+            # 空解析或只剩答案字母：写统一文案，不再留一行空白/一个字母
+            out.append(f"  【解析】{EXPL_MISSING_TEXT}")
+        else:
+            expl = rec["expl"] if full else rec["expl"][:220] + ("…" if len(rec["expl"]) > 220 else "")
+            out.append(f"  【解析】{expl}")
     if rec.get("code", "").startswith("SN") and rec.get("ans"):
         out.append(f"  【参考答案】{rec['ans'] if full else rec['ans'][:220] + '…'}")
     return "\n".join(out)
@@ -565,7 +617,7 @@ def _print_no_hit(args):
 
 
 FIELD_NAMES = (
-    "id", "year", "prov", "vol", "num", "module", "type", "code", "sub",
+    "id", "year", "prov", "vol", "num", "module", "type", "code", "sub", "form",
     "stem", "ctx", "material", "expl", "ans", "ans_note", "kw", "theme",
     "diff", "stem_flag", "canonical", "dup_n",
 )
@@ -612,7 +664,10 @@ def main(argv=None):
     ap.add_argument("--module", nargs="+", metavar="模块", help="模块：资料分析/数量关系/言语理解/判断推理/常识判断/申论"
                     "（可多个：--module 资料分析 判断推理）")
     ap.add_argument("--type", dest="type_", help="题型名，如 图形推理")
-    ap.add_argument("--sub", help="子考点名（三级），如 两期比重差 / 翻译推理 / 最不利构造")
+    ap.add_argument("--sub", help="子考点名（三级，知识点），如 两期比重差 / 翻译推理 / 最不利构造")
+    ap.add_argument("--form", nargs="+", metavar="形式", default=[],
+                    help="设问形态 / 空数（可多个，OR）：选正确项/选错误项/判断个数/排序与图示/"
+                         "一空/两空/三空及以上")
     ap.add_argument("--diff", dest="diff", help="难度：4 或 4-5 或 1,2（1 易 – 5 难）")
     ap.add_argument("--theme", help="申论主题，如 基层治理 / 乡村振兴 / 科技创新")
     ap.add_argument("--year", nargs="+", metavar="年份", default=[],
@@ -645,6 +700,14 @@ def main(argv=None):
             return 2
     else:
         args.fields = None
+
+    # --form 多值（空格/逗号/顿号均可）；取值必须是 form 字段的 7 个枚举之一
+    forms = split_terms(args.form)
+    bad_forms = [f for f in forms if f not in FORM_CHOICES]
+    if bad_forms:
+        print(f"--form 取值不认识：「{'、'.join(bad_forms)}」\n"
+              f"可选：{'/'.join(FORM_CHOICES)}。", file=sys.stderr)
+        return 2
 
     try:
         years = parse_year_values(args.year)
@@ -705,6 +768,8 @@ def main(argv=None):
         sel = [r for r in sel if args.type_ in r["type"]]
     if args.sub:
         sel = [r for r in sel if args.sub in (r.get("sub") or "")]
+    if forms:
+        sel = [r for r in sel if (r.get("form") or "") in forms]
     if args.diff:
         want = set()
         try:
@@ -748,6 +813,12 @@ def main(argv=None):
     order = {"国考": 0, "广东": 1, "湖北": 2}
     sel.sort(key=lambda r: (-(r["year"] or 0), order.get(r["prov"], 9),
                             _rec_num(r), r["id"]))
+
+    # --sub 命中兜底标签（「XX（待细分）」/「XX（综合）」）时点明「未细分」并给替代检索方式。
+    # --json / --fields 时走 stderr，保证 stdout 仍是纯 JSON / 纯字段列。
+    if args.sub and any(has_undivided_sub(r) for r in sel):
+        hint_stream = sys.stderr if (args.json or args.fields) else sys.stdout
+        print(f"提示：{SUB_UNDIVIDED_HINT}", file=hint_stream)
 
     if args.json:
         if args.group_by:

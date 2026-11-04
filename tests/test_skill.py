@@ -410,6 +410,46 @@ def main():
     p = run("--fields", "id,nope", expect_ok=False)
     check(p.returncode == 2 and "未知字段" in p.stderr, "--fields 未知字段给友好提示（退出码 2）")
 
+    print("[28] --form 设问形态 / 空数检索（P0-3）")
+    forms = {r.get("form") for r in x if r.get("form")}
+    check({"一空", "两空", "三空及以上"} <= forms, "数据里有 form=一空/两空/三空及以上 的记录")
+    p = run("--form", "两空", "--limit", "3")
+    n_liang = hit_total(p.stdout)
+    check(p.returncode == 0 and n_liang > 0, f"--form 两空 命中 > 0（{n_liang}）")
+    check(p.stdout.count("形式：两空") >= 3,
+          f"结果里显示「形式：两空」（{p.stdout.count('形式：两空')} 处）")
+    check("形式：" not in run("--sub", "两期比重差", "--limit", "1").stdout,
+          "form 为 null 的题不显示「形式：」行")
+    n_yi = hit_total(run("--form", "一空", "--limit", "1").stdout)
+    n_both = hit_total(run("--form", "一空", "两空", "--limit", "1").stdout)
+    check(n_yi > 0 and n_both == n_yi + n_liang,
+          f"多值 --form 取 OR（{n_yi} + {n_liang} = {n_both}）")
+    check(hit_total(run("--form", "一空,两空", "--limit", "1").stdout) == n_both,
+          "逗号写法与空格写法等价")
+    p = run("--form", "五空", expect_ok=False)
+    check(p.returncode == 2 and "可选" in p.stderr, "非法 --form 取值给可选项提示（退出码 2）")
+
+    print("[29] --fields form 与 --sub 未细分提示（P0-3）")
+    p = run("--form", "两空", "--limit", "3", "--fields", "id,form,sub")
+    rows = [ln for ln in p.stdout.splitlines() if ln.strip()]
+    check(bool(rows) and all(len(r.split("\t")) == 3 for r in rows),
+          "--fields id,form,sub 每行三列")
+    check(bool(rows) and all(r.split("\t")[1] == "两空" for r in rows),
+          "--fields 输出含 form，且过滤值一致")
+    noform = next(r for r in x if not r.get("form"))
+    p = run("--id", noform["id"], "--fields", "id,form")
+    check(p.returncode == 0 and p.stdout.splitlines()[0].split("\t") == [noform["id"], ""],
+          f"form 为空时 --fields 输出空列（{noform['id']}）")
+    p = run("--sub", "逻辑填空（待细分）", "--limit", "2")
+    check("未细分" in p.stdout, "--sub 命中（待细分）时输出「未细分」提示")
+    check("--kw" in p.stdout and "--fuzzy" in p.stdout and "--form" in p.stdout,
+          "提示给出 --kw / --fuzzy / --form 三条替代路径")
+    p = run("--sub", "逻辑填空（待细分）", "--limit", "2", "--fields", "id,sub")
+    check("未细分" in p.stderr and "未细分" not in p.stdout,
+          "--fields 模式下提示走 stderr，字段列保持纯净")
+    check("未细分" not in run("--sub", "两期比重差", "--limit", "1").stdout,
+          "细分到位的 --sub 不出现未细分提示")
+
     print()
     if FAILED:
         print(f"❌ {len(FAILED)} 项失败：")

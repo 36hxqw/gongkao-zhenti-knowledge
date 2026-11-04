@@ -53,8 +53,8 @@
 
 | 考点 | 编码 | 题量 | 年份跨度 | 文件 |
 |---|---|---:|---|---|
-| 图形推理 | `PD-TX` | 826 | 2000–2026 | [PD-TX-图形推理.md](kaodian/PD-TX-图形推理.md) |
-| 定义判断 | `PD-DY` | 441 | 2002–2026 | [PD-DY-定义判断.md](kaodian/PD-DY-定义判断.md) |
+| 图形推理 | `PD-TX` | 807 | 2000–2026 | [PD-TX-图形推理.md](kaodian/PD-TX-图形推理.md) |
+| 定义判断 | `PD-DY` | 460 | 2002–2026 | [PD-DY-定义判断.md](kaodian/PD-DY-定义判断.md) |
 | 类比推理 | `PD-LB` | 696 | 2006–2026 | [PD-LB-类比推理.md](kaodian/PD-LB-类比推理.md) |
 | 逻辑判断 | `PD-LJ` | 1043 | 2000–2026 | [PD-LJ-逻辑判断.md](kaodian/PD-LJ-逻辑判断.md) |
 | 科学推理 | `PD-KX` | 16 | 2004–2022 | [PD-KX-科学推理.md](kaodian/PD-KX-科学推理.md) |
@@ -79,8 +79,8 @@
 |---|---|---:|---|---|
 | 单一题（归纳概括） | `SN-DY` | 159 | 2000–2026 | [SN-DY-单一题（归纳概括）.md](kaodian/SN-DY-单一题（归纳概括）.md) |
 | 综合分析题 | `SN-ZH` | 61 | 2000–2026 | [SN-ZH-综合分析题.md](kaodian/SN-ZH-综合分析题.md) |
-| 提出对策题 | `SN-DC` | 69 | 2000–2026 | [SN-DC-提出对策题.md](kaodian/SN-DC-提出对策题.md) |
-| 公文写作题 | `SN-GW` | 56 | 2003–2026 | [SN-GW-公文写作题.md](kaodian/SN-GW-公文写作题.md) |
+| 提出对策题 | `SN-DC` | 72 | 2000–2026 | [SN-DC-提出对策题.md](kaodian/SN-DC-提出对策题.md) |
+| 公文写作题 | `SN-GW` | 53 | 2003–2026 | [SN-GW-公文写作题.md](kaodian/SN-GW-公文写作题.md) |
 | 大作文 | `SN-DZW` | 74 | 2001–2026 | [SN-DZW-大作文.md](kaodian/SN-DZW-大作文.md) |
 
 ## 二、按试卷检索（`references/juan/` 行测、`references/shenlun/` 申论）

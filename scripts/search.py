@@ -29,6 +29,9 @@
     # 分组展示（组内按考点排序）
     python scripts/search.py --module 资料分析 --group-by 年份 --limit 10
 
+    # 按考试分组（组头用 exam_label：年份 + 考试类型（+卷别））
+    python scripts/search.py --module 资料分析 --group-by 考试 --limit 10
+
     # 按 ID 取完整题目（含解析；同题变体的 id 也可直接查）
     python scripts/search.py --id GD-2023-xj-X056 --full
 
@@ -134,6 +137,10 @@ ID_RE = re.compile(r"^([A-Za-z]{2,4})-(\d{4})-([A-Za-z0-9]+)-([A-Za-z]+)(\d+)$")
 PROV_CODE = {"GK": "国考", "GD": "广东", "HB": "湖北"}
 PROV_ORDER = {"国考": 0, "广东": 1, "湖北": 2}
 
+# 考试类型（v1.12 新字段 exam）：排序与兜底拼装用
+EXAM_ORDER = {"国考": 0, "广东省考": 1, "湖北省考": 2}
+PROV_EXAM = {"国考": "国考", "广东": "广东省考", "湖北": "湖北省考"}
+
 # stem_flag 原值 -> 展示给用户的「原因」
 STEM_FLAG_REASON = {
     "short": "题干过短",
@@ -155,7 +162,7 @@ FIG_IMG_MISSING = "配图文件缺失，需回原卷看图"
 # --sub 命中兜底子考点（「XX（待细分）」/「XX（综合）」）时的提示
 SUB_UNDIVIDED_HINT = "该考点未细分，建议改用 --kw / --fuzzy / --form"
 
-GROUP_BY_CHOICES = ("年份", "考点", "省份", "年份+考点")
+GROUP_BY_CHOICES = ("年份", "考点", "省份", "考试", "年份+考点")
 
 # form 字段的 7 个取值（设问形态 / 空数）；null 表示不适用（普通四选一计算题）
 FORM_CHOICES = ("选正确项", "选错误项", "判断个数", "排序与图示", "一空", "两空", "三空及以上")
@@ -387,10 +394,30 @@ def expand_codes(words):
     return codes
 
 
+def exam_label_of(rec):
+    """「年份 + 考试类型（+卷别）」展示串（v1.12，列题一律用它）。
+
+    数据层已给出 `exam_label`（`2024 广东省考（县级）` / `2024 国考（副省级）` /
+    `2008 湖北省考`，统一卷不加卷别后缀），这里优先原样取用；个别记录缺字段时
+    按同一规则由 `year` / `exam`（或 `prov`）/ `vol` 现拼，保证任何输入都有标注。
+    """
+    label = (rec.get("exam_label") or "").strip()
+    if label:
+        return label
+    year = rec.get("year")
+    prov = (rec.get("prov") or "").strip()
+    exam = (rec.get("exam") or "").strip() or PROV_EXAM.get(prov, prov)
+    head = f"{year} {exam}".strip() if exam else str(year or "")
+    vol = (rec.get("vol") or "").strip()
+    if vol and vol != "统一卷":
+        return f"{head}（{vol}）"
+    return head
+
+
 def fmt(rec, full=False, show_expl=True, fuzzy=False):
-    head = f"[{rec['id']}] {rec['year']} {rec['prov']}·{rec['vol']}"
-    num = rec.get("num") or rec.get("no")
-    head += f" 第 {num} 题　| {rec['module']}·{rec['type']}（{rec['code']}）"
+    num = rec.get("num") or rec.get("no") or "?"
+    head = (f"[{rec['id']}] {exam_label_of(rec)}·第 {num} 题　"
+            f"| {rec['module']}·{rec['type']}（{rec['code']}）")
     if rec.get("sub"):
         head += f"　子考点：{rec['sub']}"
     if rec.get("form"):
@@ -457,7 +484,7 @@ def query_by_id(args, recs):
         _print_id_miss(qid, recs)
         return 2
     if args.json:
-        print(json.dumps([hit], ensure_ascii=False, indent=1))
+        print(json.dumps([json_item(hit)], ensure_ascii=False, indent=1))
         return 0
     if getattr(args, "fields", None):
         print(format_fields(hit, args.fields))
@@ -488,7 +515,11 @@ def _group_sort_key(rec):
 
 
 def group_hits(sel, mode):
-    """按 --group-by 维度分组，返回 [(组标题, 组内记录)]；组按维度排序，组内按考点排序。"""
+    """按 --group-by 维度（年份/考点/省份/考试/年份+考点）分组，返回 [(组标题, 组内记录)]。
+
+    「考试」维度按考试 + 卷别分组（组头直接用 `exam_label`，如
+    `── 2024 广东省考（县级）（12 题）──`）；其余维度组按维度排序，组内按考点排序。
+    """
     if not mode:
         return []
 
@@ -500,6 +531,11 @@ def group_hits(sel, mode):
             return ((-year,), f"{year or '未知'} 年")
         if mode == "省份":
             return ((PROV_ORDER.get(prov, 9), prov), prov)
+        if mode == "考试":
+            # 组头用 exam_label（年份 + 考试类型（+卷别）），组按 考试 → 年份倒序 排
+            exam = (rec.get("exam") or "").strip() or PROV_EXAM.get(prov, prov)
+            label = exam_label_of(rec)
+            return ((EXAM_ORDER.get(exam, 9), -year, label), label)
         if mode == "考点":
             title = code + (f" {rec['type']}" if rec.get("type") else "")
             return ((code,), title)
@@ -644,7 +680,8 @@ def _print_no_hit(args):
 
 
 FIELD_NAMES = (
-    "id", "year", "prov", "vol", "num", "module", "type", "code", "sub", "form",
+    "id", "year", "prov", "vol", "exam", "exam_label", "num",
+    "module", "type", "code", "sub", "form",
     "stem", "ctx", "material", "expl", "ans", "ans_note", "kw", "theme",
     "diff", "stem_flag", "canonical", "dup_n",
 )
@@ -667,6 +704,8 @@ def field_value(rec, name):
     """单个字段的文本值（列表字段用 / 连接，答案走 answer_text 口径）。"""
     if name == "ans":
         return answer_text(rec)
+    if name == "exam_label":
+        return exam_label_of(rec)
     value = rec.get(name)
     if isinstance(value, (list, tuple)):
         return "/".join(str(v) for v in value)
@@ -678,6 +717,16 @@ def field_value(rec, name):
 def format_fields(rec, fields):
     """--fields 的一行输出：制表符分隔，便于脚本 cut/awk。"""
     return "\t".join(field_value(rec, f) for f in fields)
+
+
+def json_item(rec):
+    """JSON 输出的单条记录：保证带 exam / exam_label（v1.12）。"""
+    item = dict(rec)
+    if not item.get("exam"):
+        item["exam"] = rec.get("exam") or PROV_EXAM.get(rec.get("prov"), "")
+    if not item.get("exam_label"):
+        item["exam_label"] = exam_label_of(rec)
+    return item
 
 
 def main(argv=None):
@@ -709,7 +758,7 @@ def main(argv=None):
     ap.add_argument("--id", dest="qid", help="按 ID 精确取题（同题变体 id 也直接命中，不折叠）")
     ap.add_argument("--limit", type=int, default=5, help="返回条数，默认 5")
     ap.add_argument("--group-by", dest="group_by", choices=GROUP_BY_CHOICES, metavar="维度",
-                    help="分组展示：年份/考点/省份/年份+考点（组内按考点排序）")
+                    help="分组展示：年份/考点/省份/考试（组头用 exam_label）/年份+考点（组内按考点排序）")
     ap.add_argument("--full", action="store_true", help="输出完整题干与解析")
     ap.add_argument("--json", action="store_true", help="输出 JSON")
     ap.add_argument("--shenlun", action="store_true", help="只检索申论")
@@ -888,7 +937,7 @@ def main(argv=None):
                   file=sys.stderr)
         out_recs = []
         for rec in sel[: args.limit]:
-            item = dict(rec)
+            item = json_item(rec)
             if rec["id"] in fuzzy_ids:
                 item["fuzzy"] = True
             if sub_match:

@@ -43,7 +43,8 @@
 5. 随机种子：未给 --seed 时固定用 20260101，保证 --dry-run 与成卷、两次运行结果一致。
 6. 配图：图形题（fig / 图形推理）与资料分析题若存在 references/images/<id>.jpg，则标注该相对路径。
 7. 输出：Markdown（标题 + 试题 + 答案与考点页）或 JSON 数组（题库完整字段 + image）；
-   --dry-run 只打印选题清单，不写文件。
+   每题都带 `exam_label`（年份 + 考试类型（+卷别），如 `2024 广东省考（县级）·第 8 题`），
+   卷首摘要另有「本卷覆盖」一行考试分布；--dry-run 只打印选题清单，不写文件。
 
 退出码：0 成功（含可用题量不足）；2 无结果或参数错误。
 """
@@ -91,6 +92,9 @@ PROV_ALIAS = {
     "广东": "广东", "广东省考": "广东", "gd": "广东",
     "湖北": "湖北", "湖北省考": "湖北", "hb": "湖北",
 }
+
+# 省份 -> 考试类型（v1.12 新字段 exam）；用于 exam_label 缺失时兜底拼装
+PROV_EXAM = {"国考": "国考", "广东": "广东省考", "湖北": "湖北省考"}
 
 YEAR_SPLIT = re.compile(r"[,，、;；/\s]+")
 YEAR_RANGE = re.compile(r"^(\d{4})\s*[-~—–至]\s*(\d{4})$")
@@ -407,6 +411,25 @@ def one_line(text):
     return re.sub(r"\s+", " ", (text or "")).strip()
 
 
+def exam_label_of(rec):
+    """「年份 + 考试类型（+卷别）」展示串（v1.12，组卷每题都带）。
+
+    优先取数据层 `exam_label`（`2024 广东省考（县级）` / `2024 国考（副省级）`，
+    统一卷不加卷别后缀）；缺失时按同一规则由 `year` / `exam`（或 `prov`）/ `vol` 现拼。
+    """
+    label = (rec.get("exam_label") or "").strip()
+    if label:
+        return label
+    year = rec.get("year")
+    prov = (rec.get("prov") or "").strip()
+    exam = (rec.get("exam") or "").strip() or PROV_EXAM.get(prov, prov)
+    head = f"{year} {exam}".strip() if exam else str(year or "")
+    vol = (rec.get("vol") or "").strip()
+    if vol and vol != "统一卷":
+        return f"{head}（{vol}）"
+    return head
+
+
 def cell(text):
     return one_line(text).replace("|", "／")
 
@@ -483,7 +506,7 @@ def _pad(text, width):
 def render_question(idx, rec):
     out = []
     num = rec.get("num") or rec.get("no") or "?"
-    out.append(f"### {idx}. {rec['type']}｜{rec['prov']} {rec['year']} {rec['vol']} 第 {num} 题")
+    out.append(f"### {idx}. {rec['type']}｜{exam_label_of(rec)}·第 {num} 题")
     out.append("")
 
     ctx = one_line(rec.get("ctx"))
@@ -518,8 +541,8 @@ def render_question(idx, rec):
 
 def render_answers(picked):
     out = ["## 二、答案与考点", ""]
-    out.append("| 题号 | 答案 | 模块·题型 | 考点 | id | 解析节选 |")
-    out.append("|---:|---|---|---|---|---|")
+    out.append("| 题号 | 答案 | 模块·题型 | 考点 | id | 考试 | 解析节选 |")
+    out.append("|---:|---|---|---|---|---|---|")
     for i, rec in enumerate(picked, 1):
         ans = rec.get("ans") or "—"
         expl = cell(rec.get("expl"))
@@ -529,8 +552,9 @@ def render_answers(picked):
         # 改用答案 + 缺失说明，避免答案列与解析列各出一个「C」。
         if len(expl) < 10:
             expl = f"{ans}（原解析缺失，仅答案）"
+        label = cell(exam_label_of(rec)) or "—"
         out.append(f"| {i} | {ans} | {cell(rec['module'] + '·' + rec['type'])} | "
-                   f"{rec['code']} | `{rec['id']}` | {expl} |")
+                   f"{rec['code']} | `{rec['id']}` | {label} | {expl} |")
     out.append("")
     return out
 
@@ -560,6 +584,11 @@ def render_md(picked, total_avail, filters_desc, seed, plan, seed_given=True):
         share = max(years.values()) / target
         tail = f"，上限 {ratio:.0%}" if year_cap else ""
         lines.append(f"- **年份分布**：{dist}（按请求 {target} 题计，最多一年占 {share:.0%}{tail}）")
+    exam_dist = Counter(exam_label_of(r) for r in picked)
+    if exam_dist:
+        parts = [f"{label}×{n}" for label, n in
+                 sorted(exam_dist.items(), key=lambda kv: (-kv[1], kv[0]))]
+        lines.append(f"- **本卷覆盖**：{'、'.join(parts)}")
     if plan.get("quota"):
         quota_txt = "、".join(f"{m} {n} 题" for m, n in plan["quota"].items())
         lines.append(f"- **模块配额**：{quota_txt}（--count 仅作上限）")
@@ -599,21 +628,26 @@ def render_md(picked, total_avail, filters_desc, seed, plan, seed_given=True):
 
 def record_for_json(rec):
     out = dict(rec)
+    if not out.get("exam"):
+        out["exam"] = rec.get("exam") or PROV_EXAM.get(rec.get("prov"), "")
+    if not out.get("exam_label"):
+        out["exam_label"] = exam_label_of(rec)
     out["image"] = image_path(rec)
     return out
 
 
 def print_dry_run(picked, plan, filters_desc):
-    """打印选题清单（id/年份/模块/题型/考点），不写文件。"""
+    """打印选题清单（id/年份/模块/题型/考点/考试），不写文件。"""
     target = plan.get("target") or len(picked)
     print(f"[dry-run] 筛选条件：{filters_desc}")
     print(f"[dry-run] 选题 {len(picked)} 题（目标 {target} 题；本次不写文件）")
     print()
-    header = ["#", "id", "年份", "模块", "题型", "考点"]
+    header = ["#", "id", "年份", "模块", "题型", "考点", "考试"]
     rows = [header]
     for i, rec in enumerate(picked, 1):
         rows.append([str(i), rec["id"], str(rec.get("year") or "?"),
-                     rec.get("module") or "", rec.get("type") or "", rec.get("code") or ""])
+                     rec.get("module") or "", rec.get("type") or "", rec.get("code") or "",
+                     exam_label_of(rec) or "—"])
     widths = [max(_width(row[i]) for row in rows) for i in range(len(header))]
     for row in rows:
         print("  " + "  ".join(_pad(c, w) for c, w in zip(row, widths)).rstrip())
@@ -621,6 +655,11 @@ def print_dry_run(picked, plan, filters_desc):
     years = Counter(r.get("year") or 0 for r in picked)
     if years:
         print("年份分布：" + "、".join(f"{y} 年 {years[y]} 题" for y in sorted(years, reverse=True)))
+    exam_dist = Counter(exam_label_of(r) for r in picked)
+    if exam_dist:
+        print("考试分布：" + "、".join(
+            f"{label}×{n}" for label, n in
+            sorted(exam_dist.items(), key=lambda kv: (-kv[1], kv[0]))))
     if plan.get("quota"):
         print("模块配额：" + "、".join(f"{m} {plan['quota'][m]} 题" for m in plan["quota"]))
     if plan.get("quota_compressed"):
@@ -666,7 +705,7 @@ def main(argv=None):
     ap.add_argument("--allow-flagged", dest="allow_flagged", action="store_true",
                     help="只放开「题干异常」这一项质量过滤（stem_flag 非空），其余仍生效")
     ap.add_argument("--dry-run", dest="dry_run", action="store_true",
-                    help="只打印选题清单（id/年份/模块/题型），不写文件")
+                    help="只打印选题清单（id/年份/模块/题型/考点/考试），不写文件")
     ap.add_argument("--seed", type=int,
                     help=f"随机种子，默认 {DEFAULT_SEED}（固定默认保证可复现）")
     ap.add_argument("--with-answers", dest="with_answers", action="store_true", default=True,

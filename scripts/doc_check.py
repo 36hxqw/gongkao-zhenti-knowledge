@@ -829,7 +829,7 @@ def _mk(fname, lineno, span, key, doc, expected):
 
 
 # ---- 特殊：coverage 逐卷表（98 行，按 (prov, year, vol) 动态比对） ----
-PAPER_ROW = re.compile(r"^\| (国考|广东|湖北) \| (\d{4}) \| ([^|]+?) \| (\d+) \| (\d+) \| ([^|]+?) \|$")
+PAPER_ROW = re.compile(r"^\| (国考|广东|湖北) \| (\d{4}) \| ([^|]+?) \| (\d+) \| (\d+) \| ([^|]+?) \|(?:[^|]*\|)?$")
 STATUS = {"✅": "ok", "⚠️": "part", "❌": "zero", "⚠": "part"}
 
 

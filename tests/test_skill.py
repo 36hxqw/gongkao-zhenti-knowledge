@@ -539,6 +539,39 @@ def main():
         check(int(mo.group(1)) > 0 and float(mo.group(2)) <= 25.0,
               f"sub_expl_mismatch={mo.group(1)} 条（{mo.group(2)}%）≤ 25%")
 
+    print("[34] 列题输出带「年份 + 考试类型（+卷别）」（v1.12）")
+    x = load_jsonl("xingce.jsonl")
+    labels = {r.get("exam_label") for r in x}
+    rec = next(r for r in x if r["id"] == "GD-2024-ty-X008")
+    check(rec.get("exam_label") == "2024 广东省考",
+          "GD-2024-ty-X008 的 exam_label 为「2024 广东省考」（统一卷不带卷别后缀）")
+    p = run("--id", "GD-2024-ty-X008")
+    check("2024 广东省考" in p.stdout, "--id 输出含「2024 广东省考」（年份 + 考试类型）")
+    check(f"[{rec['id']}] {rec['exam_label']}·第 {rec['num']} 题" in p.stdout,
+          "题目首行为「[id] exam_label·第 N 题」")
+    check("广东·统一卷" not in p.stdout, "不再输出旧的「广东·统一卷」写法")
+    p = run("--id", "GD-2023-xj-X045")
+    check("2023 广东省考（县级）" in p.stdout, "--id 输出带卷别的「2023 广东省考（县级）」")
+    xj = next(r for r in x if (r.get("exam_label") or "").endswith("（县级）"))
+    check(xj["exam_label"] in run("--id", xj["id"]).stdout,
+          f"有卷别的题输出卷别后缀（{xj['exam_label']}）")
+    p = run("--id", "GD-2024-ty-X008", "--fields", "id,exam,exam_label")
+    check(p.stdout.strip().split("\t") == ["GD-2024-ty-X008", rec["exam"], rec["exam_label"]],
+          "--fields 支持 exam / exam_label")
+    p = run("--id", "GD-2024-ty-X008", "--json")
+    try:
+        one = json.loads(p.stdout)[0]
+    except (json.JSONDecodeError, IndexError):
+        one = {}
+    check(one.get("exam") == "广东省考" and one.get("exam_label") == "2024 广东省考",
+          "--json 每题带 exam / exam_label")
+    p = run("--module", "资料分析", "--limit", "10", "--group-by", "考试")
+    heads = re.findall(r"── (\d{4} (?:国考|广东省考|湖北省考)[^\n]*?)"
+                       r"（(?:显示 \d+ / 共 )?\d+ 题）──", p.stdout)
+    check(len(heads) >= 2, f"--group-by 考试 有组头（{heads[:3]}）")
+    check(bool(heads) and all(h in labels for h in heads),
+          "「考试」组头用 exam_label（年份 + 考试类型（+卷别））")
+
     print()
     if FAILED:
         print(f"❌ {len(FAILED)} 项失败：")

@@ -527,6 +527,41 @@ def main():
         check("out/wrongbook.jsonl" not in proc.stdout,
               "默认路径不再与 out/wrongbook.jsonl 混淆")
 
+        # ------------------------------------------------------------------ #
+        print("[19] 组卷输出带 exam_label 与「本卷覆盖」（v1.12）")
+        proc = run("paper.py", "--module", "资料分析", "--count", "10", "--seed", "7")
+        md = proc.stdout
+        check("本卷覆盖" in md, "卷首摘要含「本卷覆盖」考试分布")
+        check(re.search(r"\*\*本卷覆盖\*\*：\d{4} [^×\n]+?×\d+", md) is not None,
+              "「本卷覆盖」按「exam_label×N」列考试分布")
+        heads = re.findall(r"^### \d+\. .+｜(\d{4} .+?)·第 \d+ 题$", md, re.M)
+        bank_labels = {rec.get("exam_label") for rec in bank.values()}
+        check(bool(heads) and all(h in bank_labels for h in heads),
+              f"试题标题带 exam_label（{heads[:2]}）")
+        ans_rows = [ln for ln in md.splitlines() if re.match(r"^\| \d+ \|", ln)]
+        rows_ok = bool(ans_rows)
+        for ln in ans_rows:
+            m = re.search(r"`([^`]+)`", ln)
+            if not m or m.group(1) not in bank:
+                rows_ok = False
+                break
+            if bank[m.group(1)].get("exam_label") not in ln:
+                rows_ok = False
+                break
+        check(rows_ok, f"答案页每题带 exam_label（{len(ans_rows)} 行）")
+        try:
+            data = json.loads(run("paper.py", "--module", "资料分析", "--count", "3",
+                                  "--format", "json").stdout)
+        except json.JSONDecodeError:
+            data = []
+        check(bool(data) and all(rec.get("exam") and rec.get("exam_label") for rec in data),
+              "--json 每题带 exam / exam_label")
+        dry = run("paper.py", "--module", "资料分析", "--count", "5", "--dry-run").stdout
+        check("考试分布" in dry, "--dry-run 附考试分布")
+        first_row = next((ln for ln in dry.splitlines() if re.match(r"^\s+1\s+\S+", ln)), "")
+        check(re.search(r"\d{4} (?:国考|广东省考|湖北省考)", first_row) is not None,
+              f"--dry-run 选题清单带 exam_label（{one_line(first_row)}）")
+
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

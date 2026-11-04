@@ -61,7 +61,7 @@ python scripts/doc_check.py      # 校验文档数字与本文件、与实测是
 | eval 样本 | 343 | 规则 189 + 人工 154 |
 | eval 弱标注 module | 99.5%（189/190） | `tests/gold_weak.jsonl`，仅展示不设阈值 |
 | eval 弱标注 code | 38.5%（35/91） | 弱标注取自原卷小节标题，含噪声 |
-| 发行包 full（解压） | 108.9 MB | 当前工作树实测（不含 dist/.git/__pycache__） |
+| 发行包 full（解压） | 110.3 MB | 当前工作树实测（不含 dist/.git/__pycache__） |
 | 发行包 lite（zip） | 6.6 MB | `dist/gongkao-zhenti-knowledge-lite-v1.4.0.zip`（dist 现有产物，未必是当前版本） |
 
 ## 口径要点

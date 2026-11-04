@@ -1,6 +1,6 @@
 # 安装与使用
 
-> 适用版本：v1.11.0　｜　数据规模与口径见 [`docs/stats-snapshot.md`](stats-snapshot.md)（由 `pipeline/gen_docs.py` 生成、CI 校验）
+> 适用版本：v1.12.0　｜　数据规模与口径见 [`docs/stats-snapshot.md`](stats-snapshot.md)（由 `pipeline/gen_docs.py` 生成、CI 校验）
 
 本 skill 兼容三种安装方式：**豆包工作模式**、**通用 Agent Skills（SKILL.md 规范）**、**本地命令行**。
 
@@ -13,7 +13,7 @@
 | **lite** | 6.6 MB | 全部 Markdown 题库 + 检索索引 | 豆包上传、只要查真题 |
 | **full** | 41.0 MB | lite + JSONL 题库 + 3 536 张配图 + 工具链 | 本地刷题、组卷、错题本 |
 
-> 体积为 `dist/` 现有 v1.4.0 打包产物的 zip 大小；v1.11.0 尚未重新打包，full 解压后约 106.8 MB，见 [distribution.md](distribution.md)。
+> 体积为 `dist/` 现有 v1.4.0 打包产物的 zip 大小；v1.12.0 尚未重新打包，full 解压后约 106.8 MB，见 [distribution.md](distribution.md)。
 
 打包命令与 GitHub Release 流程见 [distribution.md](distribution.md)。
 

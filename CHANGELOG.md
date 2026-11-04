@@ -1,5 +1,42 @@
 # CHANGELOG
 
+## v1.12.0（输出层：列题统一带「年份 + 考试类型（+卷别）」）
+
+一句话：**每道题都能一眼看出「哪年、什么考试、哪套卷」**——数据层新增 `exam` / `exam_label`（行测 + 申论全量），检索、组卷、考点文件、原卷与索引全部改用 `exam_label`。
+
+### 数据
+
+- 新增 **`exam`**（`国考` / `广东省考` / `湖北省考`）与 **`exam_label`**（`2024 广东省考（县级）`、`2024 国考（副省级）`、`2008 湖北省考`；**统一卷不加卷别后缀**）。行测 11 393 题 + 申论 419 题全量覆盖，无空值。
+- `references/juan/*.md`、`references/kaodian/*.md`、`references/shenlun/*.md` 与 `references/00-index.md` 的每题标题/索引行改用 `exam_label`，不再写「广东 2024 统一卷」。
+
+### 检索（`scripts/search.py`）
+
+- 每题首行改为 `exam_label` + 题号：`[GD-2024-ty-X008] 2024 广东省考·第 8 题　| 常识判断·生活常识（CS-SH）　子考点：历史人文　难度：★★★★☆`（原为「2024 广东·统一卷 第 8 题」）。
+- `--fields` 新增 `exam` / `exam_label`；`--json` 每题带这两个字段（缺失时按同一规则现拼，保证任何记录都有标注）。
+- `--group-by` 新增维度 **`考试`**：按考试 + 卷别分组，组头用 `exam_label`，如 `── 2024 广东省考（县级）（12 题）──`；排序为 考试（国考 → 广东 → 湖北）→ 年份倒序。
+
+### 组卷（`scripts/paper.py`）
+
+- 试题标题、答案页（新增「考试」列）、`--dry-run` 选题清单（新增「考试」列 + 「考试分布」）每题都带 `exam_label`，如 `2024 广东省考（县级）·第 8 题`。
+- 卷首摘要新增一行考试分布：`- **本卷覆盖**：2024 广东省考（县级）×12、2023 国考（地市级）×8`。
+- `--json` 每题带 `exam` / `exam_label`。
+
+### 输出规范（`SKILL.md`）
+
+- §4.1 顶部新增**强制要求**：凡是列题，每题必须标注「年份 + 考试类型（+卷别）」，格式 `2024 广东省考（县级）`；不得只写「广东 2024」或「第 8 题」。
+- §4.1.1 的 7 项必带里，第 1 项改为「年份 + 考试类型（+卷别）+ 题号 + id」并给正例/反例；检索示例里所有展示输出片段的地方都换成新格式。
+
+### 文档 / 版本
+
+- `docs/data-spec.md` 字段表新增 `exam` / `exam_label`（取值 + 拼接规则）；`docs/coverage.md` 逐卷表在「卷别」后新增「考试类型」列；`README.md` 数据规模表新增考试类型分布行、真实输出示例换新格式。
+- 版本统一 **1.12.0**（`skill.json`、`SKILL.md` frontmatter、`README.md`、`docs/install.md`、`docs/distribution.md`）。
+
+### 测试
+
+- `tests/test_skill.py` 新增 [34]：`--id` 输出含 `exam_label`（`2024 广东省考` 及带卷别后缀的写法）、`--fields exam,exam_label`、`--json` 字段、`--group-by 考试` 组头。
+- `tests/test_tools.py` 新增 [19]：组卷 Markdown 含 `exam_label`、「本卷覆盖」、答案页考试列、`--json` 字段、`--dry-run` 考试列。
+- 验收：`python scripts/selfcheck.py` / `python tests/test_skill.py` / `python tests/test_tools.py` 全绿，`python scripts/doc_check.py` exit 0。
+
 ## v1.11.0（检索归一化 + 材料文字补全 + 折叠漏判修复）
 
 - **--kw 全半角/标点归一化**：关键词与检索字段统一 NFKC 并去 《》「」,，。；："''（） 与空白；《星星之火，可以燎原》 与 星星之火,可以燎原 结果一致。

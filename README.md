@@ -1,7 +1,7 @@
 # 公考真题知识库 Skill · gongkao-zhenti-knowledge
 
 > 国考（2000–2026）· 广东省考（2003–2026）· 湖北省考（2008–2026）
-> **行测 11 393 题 + 申论 419 题**，含答案与解析；考点体系与 [gongkao-huasheng13（花生十三技巧）](../) 完全对齐。
+> **行测 11 393 题 + 申论 419 题**，含答案与解析；考点体系与 **gongkao-huasheng13（花生十三技巧，配套 skill）** 完全对齐。
 
 一个可按**考点 / 题型 / 年份 / 省份**精准检索、支持**多关键词全文匹配**的公考真题知识库，作为 Agent Skill 直接安装到豆包工作模式（或其他支持 `SKILL.md` 的宿主），与花生十三技巧 skill 组成 **考点 → 真题 → 技巧** 的闭环。
 
@@ -153,7 +153,7 @@ python scripts/wrongbook.py report --out out/wrongbook.md
 python scripts/search.py --diff 4-5 --module 资料分析
 python scripts/search.py --theme 基层治理 --limit 5
 
-# 打包发行版（lite 6.6MB / full 41MB）
+# 打包发行版（lite zip 约 7 MB / full zip 约 62 MB）
 python scripts/make_release.py --version 1.12.0
 
 # 列出全部考点与题量
@@ -229,7 +229,7 @@ python scripts/selfcheck.py && python tests/test_skill.py && python tests/eval.p
 - 数据来自使用者提供的历年真题 PDF（含官方/机构解析），仅做**文本抽取与结构化**，不改编题目内容；
 - 每题保留 `src`（来源文件名），便于溯源核对；
 - 解析文本为原文节选（≤4000 字），用于学习研究；如涉及版权问题，请联系删除对应条目；
-- 答案一律以原卷/原解析为准，库内不做人工改判。
+- 答案以原卷答案表/解析结论为准；两者冲突时按原卷订正，并在 `ans_note` 记录原值与依据（如「答案按原卷解析订正（原 ans=A 与解析结论不一致）」）。
 
 ---
 
@@ -245,6 +245,22 @@ python scripts/selfcheck.py
 新增年份时按 [`docs/data-spec.md`](docs/data-spec.md) 第六节重跑 `tools/pipeline/`。
 
 ---
+
+## 十一、发布到 GitHub
+
+```bash
+cd gongkao-zhenti-knowledge
+git init -b main                    # 已有 .git 可跳过
+git add .
+git commit -m "feat: 公考真题知识库 v1.12.0（行测 11393 + 申论 419，含答案/解析/配图）"
+git remote add origin https://github.com/<你的账号>/gongkao-zhenti-knowledge.git
+git push -u origin main
+```
+
+- 仓库体积约 106 MB（配图 55 MB），单文件最大 20 MB，均在 GitHub 限制内；
+- 发行包（`dist/*.zip`）已加入 `.gitignore`，请作为 **Release 资产**上传，不要提交进仓库；
+- 建议在仓库 **About** 里填描述（见本文件开头一句话），Topics 建议 `gongkao` `gongkao-zhenti` `agent-skill` `llm` `exam` `chinese`；
+- 打 tag：`git tag -a v1.12.0 -m "v1.12.0" && git push origin v1.12.0`，再在 GitHub 页面 New release。
 
 ## 十、License
 

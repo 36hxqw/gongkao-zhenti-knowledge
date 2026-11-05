@@ -10,10 +10,10 @@
 
 | 版本 | 体积 | 内容 | 用途 |
 |---|---|---|---|
-| **lite** | 6.6 MB | 全部 Markdown 题库 + 检索索引 | 豆包上传、只要查真题 |
-| **full** | 41.0 MB | lite + JSONL 题库 + 3 536 张配图 + 工具链 | 本地刷题、组卷、错题本 |
+| **lite** | 7.0 MB（解压 20.6 MB） | 全部 Markdown 题库 + 检索索引 | 豆包上传、只要查真题 |
+| **full** | 62.2 MB（解压 105.5 MB） | lite + JSONL 题库 + 3 536 张配图 + 工具链 | 本地刷题、组卷、错题本 |
 
-> 体积为 `dist/` 现有 v1.4.0 打包产物的 zip 大小；v1.12.0 尚未重新打包，full 解压后约 106.8 MB，见 [distribution.md](distribution.md)。
+> 体积为 v1.12.0 打包产物（`dist/`）的 zip 大小，随数据修订变化，以 `dist/MANIFEST-v1.12.0.txt` 与 [distribution.md](distribution.md) 为准。
 
 打包命令与 GitHub Release 流程见 [distribution.md](distribution.md)。
 
@@ -67,7 +67,7 @@ cd gongkao-zhenti-knowledge
 python scripts/search.py --kaodian ZL-BASE --prov 国考 --limit 3
 
 # 2) 多关键词组合定位（AND）
-python scripts/search.py --kw 黑土地 --kw 保护 --kw 粮仓
+python scripts/search.py --kw 黑土地 --kw 保护
 
 # 3) 关键词任一命中（OR）
 python scripts/search.py --any 新质生产力 低空经济 未来产业
@@ -145,8 +145,8 @@ A：检查 `SKILL.md` 的 `description` 是否被平台截断（部分平台限�
 **Q：只有真题、没有技巧？**
 A：需同时安装 `gongkao-huasheng13`。本 skill 的 `docs/kaodian-taxonomy.md` 已写好每个考点对应的花生十三文件与章节。
 
-**Q：答案显示"暂缺"？**
-A：该卷原答案 PDF 是扫描件（详见 `docs/coverage.md`）。不要编造答案，提示用户核对原卷。
+**Q：答案显示「该题答案缺失，见原卷」？**
+A：原卷答案 PDF 是扫描件或无文字层（详见 `docs/coverage.md`），或答案与原卷选项不匹配被置空（见 `ans_note`）。不要编造答案，提示用户核对原卷。
 
 **Q：能联网更新吗？**
 A：本库是静态快照（截至 2026 年国考/省考）。新增年份时按 `docs/data-spec.md` 第六节重跑流水线。

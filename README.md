@@ -246,6 +246,12 @@ python scripts/selfcheck.py
 
 ---
 
+## 十、License
+
+MIT © 2025 gongkao-zhenti-knowledge contributors
+
+---
+
 ## 十一、发布到 GitHub
 
 ```bash
@@ -262,6 +268,3 @@ git push -u origin main
 - 建议在仓库 **About** 里填描述（见本文件开头一句话），Topics 建议 `gongkao` `gongkao-zhenti` `agent-skill` `llm` `exam` `chinese`；
 - 打 tag：`git tag -a v1.12.0 -m "v1.12.0" && git push origin v1.12.0`，再在 GitHub 页面 New release。
 
-## 十、License
-
-MIT © 2025 gongkao-zhenti-knowledge contributors
